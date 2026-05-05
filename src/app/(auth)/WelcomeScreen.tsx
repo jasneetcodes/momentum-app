@@ -1,7 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React from 'react';
-import { SafeAreaView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { StatusBar, View, useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from '../../components/Button';
+import { Text } from '../../components/Text';
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -13,44 +16,37 @@ type NavProp = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavProp>();
+  const isDark = useColorScheme() === 'dark';
 
   return (
-    <SafeAreaView className="flex-1 bg-zinc-950">
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <View className="flex-1 items-center justify-center px-8">
-        {/* Wordmark */}
         <View className="items-center mb-20">
-          <View
-            className="w-16 h-16 rounded-2xl items-center justify-center mb-6"
-            style={{ backgroundColor: '#1944F1' }}
-          >
+          <View className="w-16 h-16 rounded-2xl items-center justify-center mb-6 bg-accent">
             <Text className="text-white text-2xl font-bold">M</Text>
           </View>
-          <Text className="text-white text-4xl font-bold tracking-tight">Momentum</Text>
-          <Text className="text-zinc-400 text-base mt-3 text-center leading-relaxed">
+          <Text variant="display" className="text-4xl tracking-tight">
+            Momentum
+          </Text>
+          <Text variant="muted" className="text-base mt-3 text-center">
             Wake up. Lock in.
           </Text>
         </View>
 
-        {/* CTAs */}
-        <View className="w-full">
-          <TouchableOpacity
-            className="w-full py-4 rounded-2xl items-center mb-3"
-            style={{ backgroundColor: '#1944F1' }}
+        <View className="w-full gap-3">
+          <Button
+            label="Create Account"
+            fullWidth
             onPress={() => navigation.navigate('Signup')}
-            activeOpacity={0.85}
-          >
-            <Text className="text-white font-semibold text-base">Create Account</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="w-full py-4 rounded-2xl items-center border border-zinc-700"
+          />
+          <Button
+            label="Log In"
+            variant="secondary"
+            fullWidth
             onPress={() => navigation.navigate('Login')}
-            activeOpacity={0.85}
-          >
-            <Text className="text-zinc-100 font-semibold text-base">Log In</Text>
-          </TouchableOpacity>
+          />
         </View>
       </View>
     </SafeAreaView>

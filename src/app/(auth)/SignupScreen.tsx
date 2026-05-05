@@ -2,17 +2,18 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
+  Pressable,
   ScrollView,
   StatusBar,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  useColorScheme,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from '../../components/Button';
+import { Input } from '../../components/Input';
+import { Text } from '../../components/Text';
 import { useAuthStore } from '../../stores/authStore';
 import type { AuthStackParamList } from './WelcomeScreen';
 
@@ -21,6 +22,7 @@ type NavProp = NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
 export default function SignupScreen() {
   const navigation = useNavigation<NavProp>();
   const { signup, loading } = useAuthStore();
+  const isDark = useColorScheme() === 'dark';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +32,6 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     setError(null);
-
     if (!email.trim() || !password.trim()) {
       setError('Email and password are required.');
       return;
@@ -43,51 +44,33 @@ export default function SignupScreen() {
       setError('Password must be at least 6 characters.');
       return;
     }
-
     const err = await signup(email.trim(), password);
-    if (err) {
-      setError(err);
-    } else {
-      // Supabase requires email confirmation by default — session stays null.
-      // The root navigator will auto-redirect once the session is established.
-      setPendingConfirmation(true);
-    }
+    if (err) setError(err);
+    else setPendingConfirmation(true);
   };
 
   if (pendingConfirmation) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-zinc-950 items-center justify-center px-8">
-        <StatusBar barStyle="light-content" />
-        <View
-          className="w-14 h-14 rounded-2xl items-center justify-center mb-6"
-          style={{ backgroundColor: '#1944F1' }}
-        >
+      <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark items-center justify-center px-8">
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View className="w-14 h-14 rounded-2xl items-center justify-center mb-6 bg-accent">
           <Text className="text-white text-xl font-bold">M</Text>
         </View>
-        <Text className="text-zinc-900 dark:text-white text-2xl font-bold mb-3 text-center">
-          Check your inbox
-        </Text>
-        <Text className="text-zinc-500 dark:text-zinc-400 text-base text-center leading-relaxed">
+        <Text variant="heading" className="mb-3 text-center">Check your inbox</Text>
+        <Text variant="muted" className="text-base text-center">
           We sent a confirmation link to{' '}
-          <Text className="font-semibold text-zinc-800 dark:text-zinc-200">{email}</Text>. Open it
-          to activate your account.
+          <Text className="font-semibold">{email}</Text>. Open it to activate your account.
         </Text>
-        <TouchableOpacity
-          className="mt-10"
-          onPress={() => navigation.navigate('Login')}
-          activeOpacity={0.7}
-        >
-          <Text className="text-base font-semibold" style={{ color: '#1944F1' }}>
-            Back to Log In
-          </Text>
-        </TouchableOpacity>
+        <Pressable className="mt-10" onPress={() => navigation.navigate('Login')}>
+          <Text className="text-base font-semibold text-accent">Back to Log In</Text>
+        </Pressable>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-zinc-950">
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -98,98 +81,58 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View className="flex-1 px-6 pt-8 pb-10">
-            {/* Back */}
-            <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
-              <Text className="text-zinc-500 dark:text-zinc-400 text-base">← Back</Text>
-            </TouchableOpacity>
+            <Pressable onPress={() => navigation.goBack()}>
+              <Text variant="muted" className="text-base">← Back</Text>
+            </Pressable>
 
-            {/* Header */}
             <View className="mt-10 mb-8">
-              <Text className="text-zinc-900 dark:text-white text-3xl font-bold">
-                Create account
-              </Text>
-              <Text className="text-zinc-500 dark:text-zinc-400 text-base mt-2">
-                Get started with Momentum.
-              </Text>
+              <Text variant="heading" className="text-3xl">Create account</Text>
+              <Text variant="muted" className="text-base mt-2">Get started with Momentum.</Text>
             </View>
 
-            {/* Form */}
             <View className="gap-4">
-              <View>
-                <Text className="text-zinc-600 dark:text-zinc-400 text-sm font-medium mb-1.5">
-                  Email
-                </Text>
-                <TextInput
-                  className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl px-4 py-3.5 text-base"
-                  placeholder="you@example.com"
-                  placeholderTextColor="#71717a"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-
-              <View>
-                <Text className="text-zinc-600 dark:text-zinc-400 text-sm font-medium mb-1.5">
-                  Password
-                </Text>
-                <TextInput
-                  className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl px-4 py-3.5 text-base"
-                  placeholder="Min. 6 characters"
-                  placeholderTextColor="#71717a"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
-              <View>
-                <Text className="text-zinc-600 dark:text-zinc-400 text-sm font-medium mb-1.5">
-                  Confirm password
-                </Text>
-                <TextInput
-                  className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl px-4 py-3.5 text-base"
-                  placeholder="Repeat your password"
-                  placeholderTextColor="#71717a"
-                  value={confirm}
-                  onChangeText={setConfirm}
-                  secureTextEntry
-                />
-              </View>
+              <Input
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Input
+                label="Password"
+                placeholder="Min. 6 characters"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              <Input
+                label="Confirm password"
+                placeholder="Repeat your password"
+                value={confirm}
+                onChangeText={setConfirm}
+                secureTextEntry
+              />
             </View>
 
-            {/* Error */}
             {error ? (
               <Text className="text-red-500 text-sm mt-4">{error}</Text>
             ) : null}
 
-            {/* Submit */}
-            <TouchableOpacity
-              className="w-full py-4 rounded-2xl items-center mt-8"
-              style={{ backgroundColor: '#1944F1' }}
+            <Button
+              label="Create Account"
+              fullWidth
+              loading={loading}
               onPress={handleSignup}
-              activeOpacity={0.85}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-semibold text-base">Create Account</Text>
-              )}
-            </TouchableOpacity>
+              className="mt-8"
+            />
 
-            {/* Footer */}
             <View className="flex-row justify-center mt-6">
-              <Text className="text-zinc-500 dark:text-zinc-400 text-sm">
-                Already have an account?{' '}
-              </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
-                <Text className="text-sm font-semibold" style={{ color: '#1944F1' }}>
-                  Log in
-                </Text>
-              </TouchableOpacity>
+              <Text variant="muted">Already have an account? </Text>
+              <Pressable onPress={() => navigation.navigate('Login')}>
+                <Text className="text-sm font-semibold text-accent">Log in</Text>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
