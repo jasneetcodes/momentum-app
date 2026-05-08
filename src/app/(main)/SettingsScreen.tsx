@@ -63,7 +63,7 @@ export default function SettingsScreen() {
                 <Text variant="muted" className="text-xs mt-1">{profile?.email ?? ''}</Text>
               </View>
               <View className="px-3 py-1 rounded-full bg-accent/10">
-                <Text className="text-xs font-semibold text-accent">FREE</Text>
+                <Text className="text-xs font-semibold text-accent">CERTIFIED</Text>
               </View>
             </View>
           </Card>
