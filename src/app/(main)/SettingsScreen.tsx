@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
@@ -8,6 +8,8 @@ import { Card } from '../../components/Card';
 import { Text } from '../../components/Text';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAuthStore } from '../../stores/authStore';
+import { useNfcStore } from '../../stores/nfcStore';
+import type { SettingsNavProp } from '../../navigation/types';
 
 interface RowProps {
   label: string;
@@ -37,10 +39,18 @@ function Divider() {
 }
 
 export default function SettingsScreen() {
-  const navigation = useNavigation();
-  const { isDark, barStyle, ink } = useThemeColors();
+  const navigation = useNavigation<SettingsNavProp>();
+  const { barStyle, ink } = useThemeColors();
   const profile = useAuthStore((s) => s.profile);
   const logout = useAuthStore((s) => s.logout);
+  const tags = useNfcStore((s) => s.tags);
+  const fetchTags = useNfcStore((s) => s.fetchTags);
+
+  useEffect(() => {
+    fetchTags();
+  }, [fetchTags]);
+
+  const tagCountLabel = `${tags.length} registered`;
 
   return (
     <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
@@ -71,9 +81,13 @@ export default function SettingsScreen() {
           <Text variant="label" className="mt-8 mb-2">NFC tags</Text>
           <Card className="p-0">
             <View className="px-5">
-              <Row label="Manage tags" value="0 registered" onPress={() => {}} />
+              <Row
+                label="Manage tags"
+                value={tagCountLabel}
+                onPress={() => navigation.navigate('ManageTags')}
+              />
               <Divider />
-              <Row label="Add new tag" onPress={() => {}} />
+              <Row label="Add new tag" onPress={() => navigation.navigate('NFCRegister')} />
             </View>
           </Card>
 

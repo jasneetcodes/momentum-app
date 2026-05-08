@@ -12,9 +12,14 @@ export type MainTabsParamList = {
 export type MainStackParamList = {
   MainTabs: undefined;
   Settings: undefined;
+  ManageTags: undefined;
+  NFCRegister: undefined;
 };
 
 export type HomeNavProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, 'Home'>,
   NativeStackNavigationProp<MainStackParamList>
 >;
+
+export type SettingsNavProp = NativeStackNavigationProp<MainStackParamList, 'Settings'>;
+export type ManageTagsNavProp = NativeStackNavigationProp<MainStackParamList, 'ManageTags'>;
