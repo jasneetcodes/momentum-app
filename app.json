@@ -2,6 +2,9 @@
   "expo": {
     "name": "momentum-app",
     "slug": "momentum-app",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
