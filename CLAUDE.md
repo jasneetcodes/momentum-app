@@ -27,7 +27,6 @@ paired with a physical NFC tag. It has two core MVP features:
 - Styling: NativeWind (Tailwind for RN)
 
 ## Brand
-- Primary colour: #1944F1
 - Support light mode and dark mode
 - Clean, minimal UI — energy and focus oriented
 
@@ -64,9 +63,215 @@ paired with a physical NFC tag. It has two core MVP features:
 6. Mode activation (NFC or button) + deactivation (NFC only)
 7. Live session timer on ActiveModeScreen
 
+## Brand & Visual Design
+
+Colour
+
+Primary accent: #01BAEF (cyan-blue)
+
+Background (dark mode): near-black, ~#0E0E0F
+Surface cards (dark mode): ~#1A1A1B
+Primary text (dark mode): #FFFFFF pure white
+Secondary text (dark mode): ~#888 muted grey
+
+Background (light mode): off-white with cream shift, #F9F7F5
+Surface cards (light mode): #FFFFFF pure white
+Primary text (light mode): #1A1A1A Deep charcoal
+Secondary text (light mode): ~#717171 Mid-grey
+
+The accent colour (#01BAEF) is used for: primary buttons, active toggles, streak dots,
+the NFC tap pulse animation, and selected tab indicators. Use it sparingly — it should
+always draw the eye to the one thing worth tapping.
+
+Aesthetic principles
+
+High-contrast, minimal. Every screen should feel intentional and uncluttered.
+Large typography for key numbers (time, streak count, timer). Let the numbers breathe.
+The physical NFC tag product photo is a hero UI element on the Lock In screen.
+It must always render crisply — use a high-res asset, never stretch or distort it.
+When a Lock In session is active, the UI shifts into a visibly darker, more locked-down
+state. This visual shift is intentional — it communicates the mode change without words.
+Empty states must feel considered, not lazy. Use a single short line of copy that sells
+the product concept (e.g. "Set your first alarm. No snooze. No excuses.").
+No decorative gradients, no glow effects, no heavy shadows. Flat surfaces only.
+Spacing is generous. Never cram elements — whitespace communicates premium quality.
 
 
-## Folder Structure - Draft
+Navigation Structure
+Bottom tab bar — 4 tabs
+
+Home — Dashboard. Good morning greeting, streak, next alarm, active session banner.
+Alarms — Alarm list and creation.
+Lock In — Mode selector, NFC tag hero image, Lock In CTA.
+Analytics — Weekly stats, streak history, session log.
+
+There is no dedicated "You" or "Profile" tab. Settings are accessed via a gear icon
+in the top-right corner of the Home screen. This keeps the tab bar focused on actions,
+not configuration.
+
+Screen Specs
+Home 
+
+Top bar: user first name greeting left ("Good morning, Alex"), gear icon top-right
+Streak row: current streak count prominent, weekly dot track (7 dots, filled = active day)
+Next alarm card: time in large type, day pills (M T W T F S S), NFC tag label as subtitle
+Active session banner: shown only when a Lock In session is running — tapping it goes to
+the Lock In tab. Shows mode name and live elapsed time.
+Stats strip: today's total focus time, all-time alarm streak count
+Gear icon navigates to Settings screen (pushed, not a tab)
+
+Settings 
+
+Pushed from Home gear icon — not a bottom tab
+NFC tag manager: list of registered tags with labels, add new tag, delete tag
+Notification preferences
+Emergency unblocks remaining this month
+Plan badge (Free / Pro)
+Sign out
+App version
+
+Alarms 
+
+List of alarm cards, each showing:
+
+Time in large type
+Day pills for repeat days (greyed if not active)
+Active/inactive toggle (right side)
+Alarm label as card subtitle
+
+
+Tap card to edit, swipe left to delete
+(+) button top-right to create new alarm
+Empty state: short motivational copy + create button
+
+Create/Edit Alarm 
+
+Bottom sheet (modal)
+Time picker: scroll picker, large
+Day selector: M T W T F S S pill toggles
+Label: optional text input
+Block type toggle: Blacklist (block these apps) / Whitelist (allow only these)
+App picker: scrollable list of installed apps, search bar, category filters.
+- Default apps already selected (Social Media Apps) and CANNOT BE UNSELECTED!
+Block duration: default 30 min selected, slider to adjust. MINIMUM 15 MINUTES BLOCK!
+Alarm sound: picker showing 6 pre-loaded sounds (Chime, Bell, Pulse, Siren, etc.)
+- Each sound has a play button for preview at full volume. Default: Chime.
+
+
+Lock In 
+This is the core screen of the product. Design it accordingly.
+Default state (no active session):
+
+Top: "Locked in today — Xh Xm" in muted smaller text
+Mode selector: shows the most recently used mode. Tapping opens a dropdown listing all
+saved modes + "Create new mode" at the bottom. Selecting a mode updates the display but
+does NOT start a session.
+Below mode name: "Blocking X apps" or "X apps allowed" in muted text depedning on block type
+Center hero: Momentum NFC tag product photo — large, centred, crisp
+Bottom: full-width "Lock In" primary button (#01BAEF fill)
+
+Tapping "Lock In" starts the session immediately (activated_via = 'button')
+NFC tap also starts and immediately locks — handled by the NFC listener service
+
+
+
+Active session state:
+
+UI shifts darker — background deepens, surfaces lower contrast
+Top: "Locked in today — Xh Xm" updates live
+Mode name + "Blocking X apps" or "X apps allowed" remain visible below the tag photo
+Center hero: same NFC tag photo, but with a pulsing ring around it to indicate
+"tap here to finish"
+Timer counting up (HH:MM:SS) displayed above the tag photo
+Bottom: button text changes to "Tap your tag to finish" — button is non-interactive,
+serves as instruction only
+Emergency unblock: small muted text link below the button ("Emergency unblock — X remaining")
+Tapping requires confirmation modal before executing.
+
+Create Mode 
+
+Pushed from Lock In dropdown → "Create new mode"
+Mode name input (required)
+Block type toggle: Blacklist (block these apps) / Whitelist (allow only these)
+App picker: scrollable list of installed apps, search bar, category filters
+(Social, Video, Games, Productivity, etc.)
+Save — mode immediately becomes the selected mode on Lock In screen
+
+Analytics 
+
+Avg daily Lock In time — large, week-over-week delta below it
+Weekly bar chart — focus minutes per day, this week vs last week comparison
+Streak card: current streak / longest streak / total sessions
+Alarm stats: dismissal rate, avg seconds from ring to NFC tap
+Emergency unblocks used this month
+Session history: scrollable list — date, mode name, duration, how it ended (nfc / emergency)
+
+
+Full-Screen Flows (no tab bar)
+Alarm Ringing 
+
+Full-screen takeover. Tab bar hidden. No back gesture.
+Alarm time in the largest possible type — dominates the screen
+Alarm label below in muted smaller text
+"Tap your Momentum tag" instruction centred below
+Pulsing NFC ring animation around the instruction
+Screen stays on at full brightness. Volume cannot be silenced via the app.
+NO visible dismiss button. NFC tap is the only intended exit.
+Emergency unblock: rendered in the smallest legible text at the very bottom of the screen.
+Hard to find intentionally — it's a last resort, not a feature.
+
+Post-Alarm Block 
+
+Auto-pushes immediately after alarm is dismissed via NFC
+Countdown timer in large type — MM:SS remaining
+Short line of motivational copy in muted text below the timer
+(e.g. "You're up. Make it count." — keep it short and dry, never cheesy)
+App icon row showing what's currently blocked
+No skip. No close. Timer must complete.
+Auto-navigates to Home when timer hits zero
+
+NFC Tag Setup 
+
+Stepped flow, pushed from Settings → Manage tags → Add tag
+Step 1: illustration/animation prompting user to hold tag to back of phone
+Step 2: reading UID — spinner, "Reading your tag..."
+Step 3: validating UID against valid_tags — "Checking your tag..."
+Step 4: name your tag — text input with suggestions (Kitchen, Desk, Bathroom)
+Error state (UID not in valid_tags): "This doesn't look like a Momentum tag.
+Make sure you're using the tag that came with your order."
+Success: tag saved to nfc_tags, user returned to Settings
+
+
+Component Notes
+NFC tag product photo
+
+Asset path: src/assets/images/momentum-tag.png (to be provided)
+Always render at its natural aspect ratio — never stretch
+On Lock In active state, wrap with an animated pulsing ring:
+a semi-transparent #01BAEF ring that scales from 1.0 to 1.15 and fades out, looping
+
+Mode dropdown (Lock In screen)
+
+Shows most recently used mode first, then all others sorted by last used
+"Create new mode" always last in list
+Selecting a mode saves it as the preferred mode (persisted locally via Zustand)
+New mode selection does NOT start a session — user must tap "Lock In" to begin
+
+Active session state persistence
+
+If user navigates away from Lock In tab during an active session, a persistent banner
+appears at the top of Home showing mode name + live elapsed time
+Tapping the banner returns to Lock In tab
+Session is NOT interrupted by navigation
+
+Emergency unblock confirmation modal
+
+Triggered from: Lock In active state link, or alarm ringing screen (extreme bottom)
+Shows: "This will use 1 of your X remaining emergency unblocks this month."
+Two buttons: "Cancel" and "End session anyway"
+On confirm: deactivated_via = 'emergency', session closed, apps unblocked
+
+## Folder Structure - Draft (Used as a guide not concrete)
 momentum-app/
 ├── android/                        # Native Android project (Kotlin)
 │   └── app/src/main/java/
@@ -102,8 +307,11 @@ momentum-app/
 │   │   └── useAppBlocking.ts
 │   ├── types/
 │   │   └── index.ts                # Shared TypeScript types
+|   ├── assets/
+|   |   └── sounds/
+|   |       └── chime.wav          # default sounds stored here
 │   └── constants/
-│       ├── colors.ts               # #1944F1 and full palette
+│       ├── colors.ts               # full palette
 │       └── config.ts               # App-wide config values
 ├── supabase/
 │   └── schema.sql                  # DB schema for Supabase
@@ -160,7 +368,7 @@ profiles
    +---> mode_sessions (history of mode events)
 
 
-1. profiles
+### 1. profiles
 Extends Supabase's built-in auth.users table with Momentum-specific user data. Auto-created via a database trigger when a user signs up.
 
 Columns
@@ -180,7 +388,7 @@ Why this design
 • emergency_unblocks_limit is configurable per user (not hardcoded).
 
 
-2. valid_tags
+### 2. valid_tags
 The registry of all genuine Momentum NFC tags. Before shipping a tag, you scan its UID and add it here. This prevents random NFC stickers from being registered as Momentum tags.
 
 Columns
@@ -202,7 +410,7 @@ Workflow
 5. When a customer registers, the app verifies the UID exists here.
 
 
-3. nfc_tags
+### 3. nfc_tags
 The binding between a physical Momentum tag and a user account. Created when the user taps and registers their tag for the first time.
 
 Columns
@@ -221,7 +429,7 @@ Why this design
 • Labels make analytics richer (e.g. 'most-used tag is Kitchen').
 
 
-4. alarms
+### 4. alarms
 The user's alarm configurations. Each row defines a single alarm: when it fires, what gets blocked when it's dismissed, and for how long.
 
 Columns
@@ -238,9 +446,10 @@ Columns
 | apps                   | text[]        | Array of app bundle IDs to block (or allow if whitelist).                               |
 | block_duration_minutes | int           | How long to block apps after dismissal. Defaults to 30.                                 |
 | created_at             | timestamptz   | When the alarm was created.                                                             |
+| sound                  | text         | 'chime'  'bell'  'pulse'  'siren'  etc. Defaults to 'chime'.                             |
 
 
-5. alarm_logs
+### 5. alarm_logs
 A historical record of every alarm event. Tracks when alarms fired, when they were dismissed, which tag was used, and the resulting block window.
 
 Columns
@@ -265,7 +474,7 @@ Why both dismissed_via_uid and dismissed_via_nfc_tag_id?
 • Best of both worlds: permanence + relational power.
 
 
-6. modes
+### 6. modes
 User-defined custom blocking configurations. Unlike alarms (time-based), modes are activated manually by the user — by tapping the NFC tag or pressing a button in the app.
 
 Columns
@@ -288,7 +497,7 @@ Modes vs Alarms
 • Each has its own log table for tracking history.
 
 
-7. mode_sessions
+### 7. mode_sessions
 A historical record of every time a mode was activated and deactivated. Powers the visible timer, streaks, and analytics.
 
 Columns
