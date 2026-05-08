@@ -8,12 +8,12 @@ import {
   ScrollView,
   StatusBar,
   View,
-  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Text } from '../../components/Text';
+import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAuthStore } from '../../stores/authStore';
 import type { AuthStackParamList } from './WelcomeScreen';
 
@@ -22,7 +22,7 @@ type NavProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 export default function LoginScreen() {
   const navigation = useNavigation<NavProp>();
   const { login, loading } = useAuthStore();
-  const isDark = useColorScheme() === 'dark';
+  const { barStyle } = useThemeColors();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,7 +40,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={barStyle} />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

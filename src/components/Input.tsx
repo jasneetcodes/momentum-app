@@ -1,4 +1,5 @@
-import { useColorScheme, View, TextInput, type TextInputProps } from 'react-native';
+import { View, TextInput, type TextInputProps } from 'react-native';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { Text } from './Text';
 
 interface Props extends TextInputProps {
@@ -7,7 +8,7 @@ interface Props extends TextInputProps {
 }
 
 export function Input({ label, className = '', ...rest }: Props) {
-  const isDark = useColorScheme() === 'dark';
+  const { muted } = useThemeColors();
   return (
     <View>
       {label ? (
@@ -17,7 +18,7 @@ export function Input({ label, className = '', ...rest }: Props) {
       ) : null}
       <TextInput
         className={`bg-surface dark:bg-surface-dark text-ink dark:text-ink-dark rounded-xl px-4 py-3.5 text-base ${className}`}
-        placeholderTextColor={isDark ? '#888888' : '#717171'}
+        placeholderTextColor={muted}
         {...rest}
       />
     </View>

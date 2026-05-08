@@ -8,12 +8,12 @@ import {
   ScrollView,
   StatusBar,
   View,
-  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Text } from '../../components/Text';
+import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAuthStore } from '../../stores/authStore';
 import type { AuthStackParamList } from './WelcomeScreen';
 
@@ -22,8 +22,10 @@ type NavProp = NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
 export default function SignupScreen() {
   const navigation = useNavigation<NavProp>();
   const { signup, loading } = useAuthStore();
-  const isDark = useColorScheme() === 'dark';
+  const { barStyle } = useThemeColors();
 
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -32,6 +34,10 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     setError(null);
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('First and last name are required.');
+      return;
+    }
     if (!email.trim() || !password.trim()) {
       setError('Email and password are required.');
       return;
@@ -44,7 +50,8 @@ export default function SignupScreen() {
       setError('Password must be at least 6 characters.');
       return;
     }
-    const err = await signup(email.trim(), password);
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    const err = await signup(email.trim(), password, fullName);
     if (err) setError(err);
     else setPendingConfirmation(true);
   };
@@ -52,7 +59,7 @@ export default function SignupScreen() {
   if (pendingConfirmation) {
     return (
       <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark items-center justify-center px-8">
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle={barStyle} />
         <View className="w-14 h-14 rounded-2xl items-center justify-center mb-6 bg-accent">
           <Text className="text-white text-xl font-bold">M</Text>
         </View>
@@ -70,7 +77,7 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={barStyle} />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -91,6 +98,28 @@ export default function SignupScreen() {
             </View>
 
             <View className="gap-4">
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Input
+                    label="First name"
+                    placeholder="First"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+                <View className="flex-1">
+                  <Input
+                    label="Last name"
+                    placeholder="Last"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
               <Input
                 label="Email"
                 placeholder="you@example.com"
