@@ -29,6 +29,9 @@ paired with a physical NFC tag. It has two core MVP features:
 ## Brand
 - Support light mode and dark mode
 - Clean, minimal UI — energy and focus oriented
+- NOTE: Currently using `darkMode: 'media'` in tailwind.config.js (follows OS preference).
+  Future: add a manual theme override toggle (force light / force dark) in Settings screen.
+  To implement, switch back to `darkMode: 'class'` and manage a `.dark` class via a themeStore.
 
 ## Folder Conventions
 - Screens → src/app/
@@ -39,7 +42,7 @@ paired with a physical NFC tag. It has two core MVP features:
 - Always use TypeScript
 
 ## Supabase Tables
-- profiles — user account + plan + emergency_unblocks_limit
+- profiles — user account + name + plan + emergency_unblocks_limit
 - valid_tags — pre-registered Momentum hardware UIDs
 - nfc_tags — tag UID bound to user account
 - alarms — alarm config, linked to nfc_tag and optional mode
@@ -53,6 +56,13 @@ paired with a physical NFC tag. It has two core MVP features:
   of mode_sessions where deactivated_via = 'emergency' this month
 - Default post-alarm block uses DEFAULT_BLOCKED_APPS from constants/apps.ts
 - Only NFC tap can deactivate an active mode session
+
+## Auth Screens
+
+Signup form fields (in order): First name | Last name (side-by-side row), Email, Password, Confirm password
+- First + last name are combined as "First Last" and saved to profiles.name
+- Home screen greeting uses first name only (profiles.name.split(' ')[0])
+- Login form: Email, Password
 
 ## Current Build Priority (MVP)
 1. Auth (signup/login)
@@ -112,7 +122,7 @@ not configuration.
 Screen Specs
 Home 
 
-Top bar: user first name greeting left ("Good morning, Alex"), gear icon top-right
+Top bar: user first name greeting left ("Good morning, Alex") — derived from profile.name split on space, gear icon top-right
 Streak row: current streak count prominent, weekly dot track (7 dots, filled = active day)
 Next alarm card: time in large type, day pills (M T W T F S S), NFC tag label as subtitle
 Active session banner: shown only when a Lock In session is running — tapping it goes to
@@ -123,10 +133,10 @@ Gear icon navigates to Settings screen (pushed, not a tab)
 Settings 
 
 Pushed from Home gear icon — not a bottom tab
+Account card: shows full name on top line, email below it, plan badge (Free / Pro) on right
 NFC tag manager: list of registered tags with labels, add new tag, delete tag
 Notification preferences
 Emergency unblocks remaining this month
-Plan badge (Free / Pro)
 Sign out
 App version
 
@@ -377,6 +387,7 @@ Columns
 | :----------------------- | :---------- | :---------------------------------------------------------------------------------------- |
 | id                       | uuid (PK)   | User's unique ID. Foreign key to auth.users(id). Cascade deletes if auth user is deleted. |
 | email                    | text        | User's email address. Mirrored from auth.users for easier access.                         |
+| name                     | text        | User's full name ("First Last"). Collected at signup via two separate fields (first + last), concatenated before saving. Home screen greets with first name only (split on space).  |
 | plan                     | text        | Subscription tier. Defaults to 'free'. Will become 'pro' when subscriptions are added.    |
 | emergency_unblocks_limit | int         | How many emergency unblocks user gets per month. Defaults to 5. Pro users may get more.   |
 | created_at               | timestamptz | When the user signed up.                                                                  |
