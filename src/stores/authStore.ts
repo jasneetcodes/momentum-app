@@ -1,6 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
+import { useNfcStore } from './nfcStore';
 
 export interface Profile {
   id: string;
@@ -72,6 +73,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await supabase.auth.signOut();
     set({ user: null, session: null, profile: null });
+    useNfcStore.getState().reset();
   },
 
   initialize: () => {
