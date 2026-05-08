@@ -17,7 +17,7 @@ export default function HomeScreen() {
   const profile = useAuthStore((s) => s.profile);
   console.log(profile)
 
-  const firstName = profile?.name?.split(' ')[0] ?? 'there';
+  const firstName = profile?.name?.split(' ')[0] ?? ' ';
 
   return (
     <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
