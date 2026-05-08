@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import AlarmSetupScreen from '../app/(main)/AlarmSetupScreen';
 import ManageTagsScreen from '../app/(main)/ManageTagsScreen';
 import NFCRegisterScreen from '../app/(main)/NFCRegisterScreen';
 import SettingsScreen from '../app/(main)/SettingsScreen';
@@ -15,6 +16,11 @@ export default function MainNavigator() {
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="ManageTags" component={ManageTagsScreen} />
       <Stack.Screen name="NFCRegister" component={NFCRegisterScreen} />
+      <Stack.Screen
+        name="AlarmSetup"
+        component={AlarmSetupScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
     </Stack.Navigator>
   );
 }

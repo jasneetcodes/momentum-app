@@ -1,6 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
+import { useAlarmStore } from './alarmStore';
 import { useNfcStore } from './nfcStore';
 
 export interface Profile {
@@ -74,6 +75,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     await supabase.auth.signOut();
     set({ user: null, session: null, profile: null });
     useNfcStore.getState().reset();
+    useAlarmStore.getState().reset();
   },
 
   initialize: () => {
@@ -89,7 +91,6 @@ export const useAuthStore = create<AuthState>((set) => ({
           .select('*')
           .eq('id', data.session.user.id)
           .single();
-        console.log('[authStore] profile fetch:', profile, 'error:', error);
         if (profile) set({ profile: profile as Profile });
       }
     });
