@@ -6,20 +6,28 @@
 
 export const accent = '#01BAEF';
 
-export const lightTheme = {
+export interface ThemeColors {
+  bg: string;
+  surface: string;
+  ink: string;
+  muted: string;
+  accent: string;
+}
+
+export const lightTheme: ThemeColors = {
   bg: '#F9F7F5',
   surface: '#FFFFFF',
   ink: '#1A1A1A',
   muted: '#717171',
   accent,
-} as const;
+};
 
-export const darkTheme = {
+export const darkTheme: ThemeColors = {
   bg: '#0E0E0F',
   surface: '#1A1A1B',
   ink: '#FFFFFF',
   muted: '#888888',
   accent,
-} as const;
+};
 
-export type ThemeColors = typeof lightTheme;
+
