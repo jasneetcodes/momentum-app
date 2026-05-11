@@ -17,6 +17,15 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Android
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+*.iml
+.idea/
+
 # Metro
 .metro-health-check*
 
@@ -35,3 +44,6 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Claude Code
+.claude/settings.local.json
