@@ -1,6 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
+import { useAlarmLogStore } from './alarmLogStore';
 import { useAlarmStore } from './alarmStore';
 import { useNfcStore } from './nfcStore';
 
@@ -76,6 +77,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, session: null, profile: null });
     useNfcStore.getState().reset();
     useAlarmStore.getState().reset();
+    useAlarmLogStore.getState().clear();
   },
 
   initialize: () => {

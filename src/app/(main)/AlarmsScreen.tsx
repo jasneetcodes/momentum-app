@@ -8,6 +8,7 @@ import { Card } from '../../components/Card';
 import { Text } from '../../components/Text';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAlarmStore, type Alarm } from '../../stores/alarmStore';
+import { useAlarmLogStore } from '../../stores/alarmLogStore';
 import type { AlarmsNavProp } from '../../navigation/types';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -24,15 +25,15 @@ interface AlarmCardProps {
   alarm: Alarm;
   onToggle: (id: string, value: boolean) => void;
   onPress: () => void;
-  onDelete: () => void;
+  onLongPress: () => void;
 }
 
-function AlarmCard({ alarm, onToggle, onPress, onDelete }: AlarmCardProps) {
-  const { accent, muted, ink } = useThemeColors();
+function AlarmCard({ alarm, onToggle, onPress, onLongPress }: AlarmCardProps) {
+  const { accent, muted } = useThemeColors();
   const isOneOff = alarm.days_of_week.length === 0;
 
   return (
-    <Pressable onLongPress={onDelete} onPress={onPress}>
+    <Pressable onLongPress={onLongPress} onPress={onPress}>
       <Card style={{ opacity: alarm.is_active ? 1 : 0.5 }}>
         <View className="flex-row items-start justify-between">
           <View className="flex-1">
@@ -86,12 +87,13 @@ export default function AlarmsScreen() {
   const fetchAlarms = useAlarmStore((s) => s.fetchAlarms);
   const toggleAlarm = useAlarmStore((s) => s.toggleAlarm);
   const deleteAlarm = useAlarmStore((s) => s.deleteAlarm);
+  const fireAlarm = useAlarmLogStore((s) => s.fire);
 
   useEffect(() => {
     fetchAlarms();
   }, [fetchAlarms]);
 
-  const handleDelete = (alarm: Alarm) => {
+  const confirmDelete = (alarm: Alarm) => {
     Alert.alert(
       'Delete alarm?',
       `"${alarm.label ?? formatTimeDisplay(alarm.time)}" will be removed.`,
@@ -104,6 +106,23 @@ export default function AlarmsScreen() {
         },
       ],
     );
+  };
+
+  const handleTestRing = async (alarm: Alarm) => {
+    const log = await fireAlarm(alarm.id);
+    if (!log) {
+      Alert.alert('Could not start alarm', 'Please try again.');
+      return;
+    }
+    navigation.navigate('AlarmRinging', { alarmId: alarm.id });
+  };
+
+  const handleLongPress = (alarm: Alarm) => {
+    Alert.alert(alarm.label ?? formatTimeDisplay(alarm.time), undefined, [
+      { text: 'Test ring', onPress: () => handleTestRing(alarm) },
+      { text: 'Delete', style: 'destructive', onPress: () => confirmDelete(alarm) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   return (
@@ -143,12 +162,12 @@ export default function AlarmsScreen() {
                 alarm={alarm}
                 onToggle={toggleAlarm}
                 onPress={() => navigation.navigate('AlarmSetup', { alarmId: alarm.id })}
-                onDelete={() => handleDelete(alarm)}
+                onLongPress={() => handleLongPress(alarm)}
               />
             ))}
           </View>
           <Text variant="muted" className="text-xs text-center mt-6">
-            Long-press any alarm to delete.
+            Long-press any alarm for options.
           </Text>
         </ScrollView>
       )}

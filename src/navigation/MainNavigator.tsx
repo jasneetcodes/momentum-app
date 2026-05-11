@@ -1,8 +1,10 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import AlarmRingingScreen from '../app/AlarmRingingScreen';
 import AlarmSetupScreen from '../app/(main)/AlarmSetupScreen';
 import ManageTagsScreen from '../app/(main)/ManageTagsScreen';
 import NFCRegisterScreen from '../app/(main)/NFCRegisterScreen';
+import PostAlarmBlockScreen from '../app/PostAlarmBlockScreen';
 import SettingsScreen from '../app/(main)/SettingsScreen';
 import MainTabs from './MainTabs';
 import type { MainStackParamList } from './types';
@@ -20,6 +22,24 @@ export default function MainNavigator() {
         name="AlarmSetup"
         component={AlarmSetupScreen}
         options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="AlarmRinging"
+        component={AlarmRingingScreen}
+        options={{
+          presentation: 'fullScreenModal',
+          gestureEnabled: false,
+          animation: 'fade',
+        }}
+      />
+      <Stack.Screen
+        name="PostAlarmBlock"
+        component={PostAlarmBlockScreen}
+        options={{
+          presentation: 'fullScreenModal',
+          gestureEnabled: false,
+          animation: 'fade',
+        }}
       />
     </Stack.Navigator>
   );

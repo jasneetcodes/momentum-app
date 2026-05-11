@@ -15,7 +15,11 @@ export type MainStackParamList = {
   ManageTags: undefined;
   NFCRegister: undefined;
   AlarmSetup: { alarmId?: string };
+  AlarmRinging: { alarmId: string };
+  PostAlarmBlock: { alarmId: string };
 };
+
+export type RootNavProp = NativeStackNavigationProp<MainStackParamList>;
 
 export type HomeNavProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, 'Home'>,
