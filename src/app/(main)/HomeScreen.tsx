@@ -15,7 +15,6 @@ export default function HomeScreen() {
   const navigation = useNavigation<HomeNavProp>();
   const { barStyle, ink } = useThemeColors();
   const profile = useAuthStore((s) => s.profile);
-  console.log(profile)
 
   const firstName = profile?.name?.split(' ')[0] ?? ' ';
 
