@@ -3,6 +3,10 @@
 -- Run this in Supabase SQL Editor (Database → SQL Editor → New query).
 -- =============================================================================
 
+-- Add sound column if it doesn't already exist
+alter table public.alarms
+  add column if not exists sound text not null default 'chime';
+
 alter table public.alarms enable row level security;
 
 drop policy if exists "Users can read their own alarms" on public.alarms;
