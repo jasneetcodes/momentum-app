@@ -19,6 +19,8 @@ allprojects {
     maven { url 'https://www.jitpack.io' }
     maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
     maven { url 'https://repo1.maven.org/maven2' }
+    // Notifee ships its `app.notifee:core` AAR locally inside the package
+    maven { url "$rootDir/../node_modules/@notifee/react-native/android/libs" }
   }
 }
 

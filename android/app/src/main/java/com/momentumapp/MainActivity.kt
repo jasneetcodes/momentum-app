@@ -1,7 +1,10 @@
 package com.momentumapp
 
+import android.app.KeyguardManager
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -17,6 +20,38 @@ class MainActivity : ReactActivity() {
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
     super.onCreate(null)
+    applyAlarmWakeFlags()
+  }
+
+  override fun onNewIntent(intent: android.content.Intent?) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    applyAlarmWakeFlags()
+  }
+
+  /**
+   * When launched from an alarm full-screen intent we want to show over the lock
+   * screen and turn the display on. On API 27+ the proper way is [setShowWhenLocked]
+   * / [setTurnScreenOn]; for older we fall back to window flags.
+   */
+  private fun applyAlarmWakeFlags() {
+    val launchedByAlarm = intent?.getBooleanExtra("alarm_full_screen", false) == true
+        || (intent?.data?.scheme == "momentum" && intent?.data?.host == "alarm")
+    if (!launchedByAlarm) return
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+      setShowWhenLocked(true)
+      setTurnScreenOn(true)
+      val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+      km.requestDismissKeyguard(this, null)
+    } else {
+      window.addFlags(
+        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+      )
+    }
   }
 
   /**

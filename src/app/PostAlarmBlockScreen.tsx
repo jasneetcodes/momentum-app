@@ -103,19 +103,24 @@ export default function PostAlarmBlockScreen() {
     <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
       <StatusBar barStyle={barStyle} />
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 32 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingBottom: 32,
+          justifyContent: 'space-between',
+        }}
       >
-        <View className="flex-1 items-center justify-center pt-12">
-          <Text variant="muted" className="text-sm uppercase tracking-wider">
+        <View className="items-center pt-16 pb-10">
+          <Text variant="muted" className="text-sm uppercase tracking-wider mb-4">
             Time remaining
           </Text>
           <Text
-            className="text-ink dark:text-ink-dark font-bold mt-3"
-            style={{ fontSize: 96, fontVariant: ['tabular-nums'] }}
+            className="text-ink dark:text-ink-dark font-bold"
+            style={{ fontSize: 80, lineHeight: 88, fontVariant: ['tabular-nums'] }}
           >
             {formatCountdown(remaining)}
           </Text>
-          <Text variant="muted" className="text-base mt-4 text-center">
+          <Text variant="muted" className="text-base mt-5 text-center">
             {motivationalLine}
           </Text>
         </View>

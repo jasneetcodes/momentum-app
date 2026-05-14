@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
+import { previewAlarmSound, stopPreviewSound } from '../../services/sound';
+import { ensureFullScreenIntentGranted } from '../../services/permissions';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -106,6 +108,27 @@ export default function AlarmSetupScreen() {
   const [sound, setSound] = useState<string>(editing?.sound ?? DEFAULT_SOUND);
   const [showPicker, setShowPicker] = useState(Platform.OS === 'ios');
   const [saving, setSaving] = useState(false);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      stopPreviewSound();
+    };
+  }, []);
+
+  const handlePreview = async (id: string) => {
+    if (previewingId === id) {
+      await stopPreviewSound();
+      setPreviewingId(null);
+      return;
+    }
+    setPreviewingId(id);
+    try {
+      await previewAlarmSound(id);
+    } catch {
+      setPreviewingId(null);
+    }
+  };
 
   const handleBlockTypeChange = (type: 'blacklist' | 'whitelist') => {
     setBlockType(type);
@@ -146,6 +169,10 @@ export default function AlarmSetupScreen() {
   };
 
   const handleSave = async () => {
+    // Ask for the lock-screen full-screen-alarm permission before saving.
+    // On Android 13- and iOS this resolves true immediately.
+    await ensureFullScreenIntentGranted();
+
     setSaving(true);
     const input = {
       label: label.trim() || null,
@@ -362,6 +389,7 @@ export default function AlarmSetupScreen() {
         <Card className="p-0">
           {ALARM_SOUNDS.map((s, i) => {
             const active = sound === s.id;
+            const previewing = previewingId === s.id;
             return (
               <Pressable
                 key={s.id}
@@ -372,8 +400,21 @@ export default function AlarmSetupScreen() {
                   borderBottomColor: muted + '20',
                 }}
               >
-                <Text className="text-base">{s.name}</Text>
-                {active && <Ionicons name="checkmark" size={20} color={accent} />}
+                <Text className="text-base flex-1">{s.name}</Text>
+                <View className="flex-row items-center gap-4">
+                  <Pressable
+                    onPress={() => handlePreview(s.id)}
+                    hitSlop={12}
+                    className="active:opacity-50"
+                  >
+                    <Ionicons
+                      name={previewing ? 'stop-circle' : 'play-circle'}
+                      size={26}
+                      color={previewing ? accent : muted}
+                    />
+                  </Pressable>
+                  {active && <Ionicons name="checkmark" size={20} color={accent} />}
+                </View>
               </Pressable>
             );
           })}
