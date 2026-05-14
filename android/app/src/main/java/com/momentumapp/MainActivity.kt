@@ -42,8 +42,9 @@ class MainActivity : ReactActivity() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
       setShowWhenLocked(true)
       setTurnScreenOn(true)
-      val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-      km.requestDismissKeyguard(this, null)
+      // requestDismissKeyguard is NOT called here — it is triggered from JS
+      // when the user taps the NFC ring area on AlarmRingingScreen. This lets
+      // the alarm UI render fully before the PIN/biometric prompt appears.
     } else {
       window.addFlags(
         WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or

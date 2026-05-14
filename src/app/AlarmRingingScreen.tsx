@@ -13,7 +13,7 @@ import { Text } from '../components/Text';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { cancelRead, initNfc, readTagUid } from '../services/nfc';
 import { playAlarmSound, stopAlarmSound } from '../services/sound';
-import { startNativeAlarmAudio, stopNativeAlarmAudio } from '../services/alarmAudio';
+import { isKeyguardSecure, requestKeyguardDismiss, startNativeAlarmAudio, stopNativeAlarmAudio } from '../services/alarmAudio';
 import { scheduleAlarm } from '../services/scheduler';
 import notifee from '@notifee/react-native';
 import { useAlarmStore } from '../stores/alarmStore';
@@ -60,6 +60,15 @@ export default function AlarmRingingScreen() {
 
   const [scanError, setScanError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
+
+  // On devices with no PIN/swipe lock, dismiss the keyguard immediately so
+  // the NFC reader is active as soon as the alarm screen appears. On secure
+  // devices (PIN/biometric) we wait for the user to tap the ring instead.
+  useEffect(() => {
+    isKeyguardSecure().then((secure) => {
+      if (!secure) requestKeyguardDismiss();
+    });
+  }, []);
 
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -213,7 +222,7 @@ export default function AlarmRingingScreen() {
           )}
         </View>
 
-        <View className="items-center">
+        <Pressable className="items-center" onPress={() => requestKeyguardDismiss()}>
           <View className="w-40 h-40 items-center justify-center mb-8">
             <Animated.View
               style={[
@@ -242,7 +251,7 @@ export default function AlarmRingingScreen() {
           {scanError && (
             <Text className="text-sm text-red-500 mt-3 text-center">{scanError}</Text>
           )}
-        </View>
+        </Pressable>
 
         <Pressable onPress={handleEmergency} hitSlop={20}>
           <Text variant="muted" className="text-[10px] opacity-50">Emergency unblock</Text>

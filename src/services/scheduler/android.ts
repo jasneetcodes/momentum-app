@@ -125,11 +125,12 @@ async function scheduleOne(alarm: Alarm, pgWeekday: number | null): Promise<void
     trigger,
   );
 
-  // setAlarmClock() is allowed to launch activities on all Android versions
-  // (locked, unlocked, screen on/off, app killed). This is the only reliable
-  // path for the "app killed + screen on" case where fullScreenAction degrades
-  // to a heads-up notification and the foreground service exemption is gone.
-  AlarmAudio?.scheduleAlarmActivity(fire.getTime(), alarm.id, pgWeekday ?? -1).catch(() => {});
+  // setAlarmClock() fires AlarmTriggerReceiver, which starts AlarmAudioService
+  // as a foreground service. The foreground service has a Background Activity
+  // Launch exemption window, so its startActivity() call into MainActivity
+  // succeeds even when the app is killed and the screen is unlocked — the
+  // case where Notifee's fullScreenAction degrades to a silent heads-up.
+  AlarmAudio?.scheduleAlarmActivity(fire.getTime(), alarm.id, pgWeekday ?? -1, alarm.sound).catch(() => {});
 }
 
 export async function scheduleAlarm(alarm: Alarm): Promise<void> {

@@ -1,6 +1,7 @@
 package com.momentumapp
 
 import android.app.AlarmManager
+import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -68,27 +69,30 @@ class AlarmAudioModule(reactContext: ReactApplicationContext) :
   }
 
   /**
-   * Schedules an AlarmManager.setAlarmClock() PendingIntent that launches
-   * MainActivity directly at the given timestamp. Unlike Notifee's
-   * setExactAndAllowWhileIdle, setAlarmClock() is allowed to start activities
-   * on ALL Android versions regardless of whether the screen is on or off.
+   * Schedules an AlarmManager.setAlarmClock() PendingIntent that fires
+   * [AlarmTriggerReceiver] at the given timestamp. The receiver then starts
+   * the foreground audio service, which has a Background Activity Launch
+   * exemption window and can legally launch MainActivity even when the
+   * screen is unlocked and the app was force-stopped. A direct
+   * `PendingIntent.getActivity` here would be blocked by BAL on unlocked
+   * screens on Android 10+.
    *
    * weekday: -1 = one-off, 0-6 = day-of-week slot (mirrors pgWeekday + null→-1)
    */
   @ReactMethod
-  fun scheduleAlarmActivity(timestamp: Double, alarmId: String, weekday: Int, promise: Promise) {
+  fun scheduleAlarmActivity(timestamp: Double, alarmId: String, weekday: Int, soundRes: String, promise: Promise) {
     try {
       val am = reactApplicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
       val uri = Uri.parse("momentum-activity://alarm/$alarmId?w=$weekday")
-      val launchIntent = Intent(reactApplicationContext, MainActivity::class.java).apply {
-        action = Intent.ACTION_VIEW
+      val triggerIntent = Intent(reactApplicationContext, AlarmTriggerReceiver::class.java).apply {
+        action = "com.momentumapp.alarm.TRIGGER"
         data = uri
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        putExtra("alarm_full_screen", true)
+        putExtra(AlarmTriggerReceiver.EXTRA_ALARM_ID, alarmId)
+        putExtra(AlarmTriggerReceiver.EXTRA_SOUND_RES, soundRes)
       }
       val reqCode = uri.toString().hashCode()
-      val pi = PendingIntent.getActivity(
-        reactApplicationContext, reqCode, launchIntent,
+      val pi = PendingIntent.getBroadcast(
+        reactApplicationContext, reqCode, triggerIntent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       )
       // showIntent: what tapping the alarm clock icon in the status bar opens
@@ -115,11 +119,11 @@ class AlarmAudioModule(reactContext: ReactApplicationContext) :
       val am = reactApplicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
       for (weekday in -1..6) {
         val uri = Uri.parse("momentum-activity://alarm/$alarmId?w=$weekday")
-        val intent = Intent(reactApplicationContext, MainActivity::class.java).apply {
-          action = Intent.ACTION_VIEW
+        val intent = Intent(reactApplicationContext, AlarmTriggerReceiver::class.java).apply {
+          action = "com.momentumapp.alarm.TRIGGER"
           data = uri
         }
-        val pi = PendingIntent.getActivity(
+        val pi = PendingIntent.getBroadcast(
           reactApplicationContext, uri.toString().hashCode(), intent,
           PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
@@ -128,6 +132,43 @@ class AlarmAudioModule(reactContext: ReactApplicationContext) :
       promise.resolve(null)
     } catch (e: Throwable) {
       promise.reject("CancelAlarmActivitiesError", e)
+    }
+  }
+
+  /**
+   * Returns true if the device has a secure lock screen (PIN, pattern, or
+   * biometric). Used by AlarmRingingScreen to decide whether to auto-dismiss
+   * the keyguard immediately or wait for explicit user interaction.
+   */
+  @ReactMethod
+  fun isKeyguardSecure(promise: Promise) {
+    try {
+      val km = reactApplicationContext
+        .getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+      promise.resolve(km.isKeyguardSecure)
+    } catch (e: Throwable) {
+      promise.reject("KeyguardSecureCheckError", e)
+    }
+  }
+
+  /**
+   * Requests the keyguard to dismiss from JS — called when the user taps the
+   * NFC ring area on AlarmRingingScreen so the PIN/biometric prompt appears
+   * only on explicit user interaction, not immediately on alarm launch.
+   */
+  @ReactMethod
+  fun requestKeyguardDismiss(promise: Promise) {
+    try {
+      val activity = reactApplicationContext.currentActivity ?: run { promise.resolve(null); return }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+        activity.runOnUiThread {
+          val km = activity.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+          km.requestDismissKeyguard(activity, null)
+        }
+      }
+      promise.resolve(null)
+    } catch (e: Throwable) {
+      promise.reject("KeyguardDismissError", e)
     }
   }
 

@@ -5,6 +5,8 @@ interface AlarmAudioBridge {
   stop: () => Promise<void>;
   canUseFullScreenIntent: () => Promise<boolean>;
   openFullScreenIntentSettings: () => Promise<boolean>;
+  isKeyguardSecure: () => Promise<boolean>;
+  requestKeyguardDismiss: () => Promise<void>;
 }
 
 const Native = NativeModules.MomentumAlarmAudio as AlarmAudioBridge | undefined;
@@ -43,4 +45,26 @@ export async function openFullScreenIntentSettings(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Returns true if the device has a PIN/pattern/biometric lock screen. Android only. */
+export async function isKeyguardSecure(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !Native) return false;
+  try {
+    return await Native.isKeyguardSecure();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Request the keyguard to dismiss — call when the user taps the NFC ring on
+ * the alarm screen. On devices with no PIN this is a no-op; on PIN/biometric
+ * devices it triggers the authentication prompt. Android only.
+ */
+export async function requestKeyguardDismiss(): Promise<void> {
+  if (Platform.OS !== 'android' || !Native) return;
+  try {
+    await Native.requestKeyguardDismiss();
+  } catch {}
 }
