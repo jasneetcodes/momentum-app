@@ -1,5 +1,34 @@
 # Momentum App — Claude Code Instructions
 
+## In-Progress Work Log
+
+### 2026-05-14 — Alarm activity launch when app killed + phone unlocked (NOT WORKING)
+
+**Working scenarios (Android, on Pixel):**
+- App killed + phone LOCKED → AlarmRingingScreen shows over lock screen, audio plays, persists after unlock. ✓
+- App alive (background) + phone unlocked → AlarmRingingScreen force-opens, audio plays. ✓
+- Lock screen NFC: `requestDismissKeyguard` prompts for biometric so NFC works after auth. ✓
+
+**Broken scenario:**
+- App killed + phone UNLOCKED → only the silent Notifee notification shows. Alarm audio may or may not start (unclear from latest test). The AlarmRingingScreen does NOT auto-open. User must tap the notification to enter the app.
+
+**What's been tried:**
+1. `AlarmAudioService.launchMainActivity()` — calling `startActivity()` from the foreground service after `startForeground()`. Android 12+ removed this exemption, so it silently fails on the test Pixel.
+2. `AlarmManager.setAlarmClock()` with an Activity PendingIntent (current state in `AlarmAudioModule.scheduleAlarmActivity`). Wired into `scheduler/android.ts`. User reports still not working — Activity PendingIntents from `setAlarmClock` appear to be silently dropped on this Pixel build.
+
+**Next planned attempt:**
+Switch `setAlarmClock` to a Broadcast PendingIntent + a new `AlarmActivityReceiver` (matches Google Clock / Sleep-as-Android pattern):
+- `AlarmActivityReceiver.kt` (new) — `BroadcastReceiver` that on `onReceive` calls `startActivity(MainActivity)` with the `momentum://alarm/{id}` deep link and `alarm_full_screen=true` extra. Android grants a ~10s BAL-allowed window after a `setAlarmClock` broadcast fires, during which `startActivity` is permitted regardless of app state.
+- Register receiver in `AndroidManifest.xml` (`exported="false"`).
+- Update `AlarmAudioModule.scheduleAlarmActivity` to use `PendingIntent.getBroadcast(...)` targeting the new receiver (instead of `getActivity`).
+- Update `cancelAlarmActivities` to match the new PendingIntent shape.
+
+**To test the next attempt:** delete and re-create the test alarm after rebuilding so the new `scheduleAlarmActivity` path is actually used (old AlarmManager schedules from prior builds won't have the broadcast PI).
+
+**Branch:** `phase4`. The setAlarmClock + activity PI changes are committed; the broadcast-receiver refactor has NOT been started yet.
+
+---
+
 ## What is Momentum
 Momentum is a React Native (Expo Bare Workflow) alarm + focus app 
 paired with a physical NFC tag. It has two core MVP features:

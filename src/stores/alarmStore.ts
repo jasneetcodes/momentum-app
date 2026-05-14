@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
+import { cancelAlarm, rescheduleAll, scheduleAlarm } from '../services/scheduler';
 
 export interface Alarm {
   id: string;
@@ -38,26 +39,37 @@ export const useAlarmStore = create<AlarmState>((set, get) => ({
       .from('alarms')
       .select('*')
       .order('time', { ascending: true });
-    set({ loading: false, alarms: (data as Alarm[]) ?? [] });
+    const alarms = (data as Alarm[]) ?? [];
+    set({ loading: false, alarms });
+    // Resync OS schedule with what's in the DB
+    rescheduleAll(alarms).catch(() => {});
   },
 
   createAlarm: async (input) => {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return 'not_authenticated';
 
-    const { error } = await supabase.from('alarms').insert({
-      ...input,
-      user_id: auth.user.id,
-    });
+    const { data, error } = await supabase
+      .from('alarms')
+      .insert({ ...input, user_id: auth.user.id })
+      .select()
+      .single();
     if (error) return error.message;
     await get().fetchAlarms();
+    if (data) await scheduleAlarm(data as Alarm).catch(() => {});
     return null;
   },
 
   updateAlarm: async (id, input) => {
-    const { error } = await supabase.from('alarms').update(input).eq('id', id);
+    const { data, error } = await supabase
+      .from('alarms')
+      .update(input)
+      .eq('id', id)
+      .select()
+      .single();
     if (error) return error.message;
     await get().fetchAlarms();
+    if (data) await scheduleAlarm(data as Alarm).catch(() => {});
     return null;
   },
 
@@ -65,6 +77,7 @@ export const useAlarmStore = create<AlarmState>((set, get) => ({
     const { error } = await supabase.from('alarms').delete().eq('id', id);
     if (error) return error.message;
     set({ alarms: get().alarms.filter((a) => a.id !== id) });
+    cancelAlarm(id).catch(() => {});
     return null;
   },
 
@@ -74,14 +87,17 @@ export const useAlarmStore = create<AlarmState>((set, get) => ({
         a.id === id ? { ...a, is_active: isActive } : a,
       ),
     });
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('alarms')
       .update({ is_active: isActive })
-      .eq('id', id);
+      .eq('id', id)
+      .select()
+      .single();
     if (error) {
       await get().fetchAlarms();
       return error.message;
     }
+    if (data) await scheduleAlarm(data as Alarm).catch(() => {});
     return null;
   },
 

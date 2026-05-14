@@ -12,6 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '../components/Text';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { cancelRead, initNfc, readTagUid } from '../services/nfc';
+import { playAlarmSound, stopAlarmSound } from '../services/sound';
+import { isKeyguardSecure, requestKeyguardDismiss, startNativeAlarmAudio, stopNativeAlarmAudio } from '../services/alarmAudio';
+import { scheduleAlarm } from '../services/scheduler';
+import notifee from '@notifee/react-native';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useAlarmLogStore } from '../stores/alarmLogStore';
 import type { MainStackParamList, RootNavProp } from '../navigation/types';
@@ -35,13 +39,36 @@ export default function AlarmRingingScreen() {
 
   const { accent } = useThemeColors();
   const alarms = useAlarmStore((s) => s.alarms);
+  const fetchAlarms = useAlarmStore((s) => s.fetchAlarms);
+  const activeLog = useAlarmLogStore((s) => s.activeLog);
+  const fire = useAlarmLogStore((s) => s.fire);
   const dismissNfc = useAlarmLogStore((s) => s.dismissNfc);
   const dismissEmergency = useAlarmLogStore((s) => s.dismissEmergency);
 
   const alarm = useMemo(() => alarms.find((a) => a.id === alarmId), [alarms, alarmId]);
 
+  // If the screen was opened by a notification with no log in memory, fire one
+  useEffect(() => {
+    if (!alarms.length) fetchAlarms();
+  }, [alarms.length, fetchAlarms]);
+
+  useEffect(() => {
+    if (alarm && (!activeLog || activeLog.alarm_id !== alarmId)) {
+      fire(alarmId);
+    }
+  }, [alarm, activeLog, alarmId, fire]);
+
   const [scanError, setScanError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
+
+  // On devices with no PIN/swipe lock, dismiss the keyguard immediately so
+  // the NFC reader is active as soon as the alarm screen appears. On secure
+  // devices (PIN/biometric) we wait for the user to tap the ring instead.
+  useEffect(() => {
+    isKeyguardSecure().then((secure) => {
+      if (!secure) requestKeyguardDismiss();
+    });
+  }, []);
 
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -79,6 +106,8 @@ export default function AlarmRingingScreen() {
 
       const err = await dismissNfc(alarm, uid);
       if (err === null) {
+        await stopAlarmSound();
+        await stopNativeAlarmAudio();
         navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
         return;
       }
@@ -112,6 +141,26 @@ export default function AlarmRingingScreen() {
     };
   }, [startScan]);
 
+  useEffect(() => {
+    if (!alarm) return;
+    // The Notifee background handler in index.js already started the native
+    // foreground alarm-stream audio the instant the trigger fired. We re-call
+    // it here only as a defensive no-op for paths that bypass the trigger
+    // (e.g. someone navigates here manually). Native start is idempotent.
+    startNativeAlarmAudio(alarm.sound, alarm.id);
+    playAlarmSound(alarm.sound);
+    // Dismiss the triggering notification so it doesn't linger in the shade
+    notifee.cancelDisplayedNotifications().catch(() => {});
+    // Re-schedule next occurrence (Notifee's TIMESTAMP trigger is one-shot)
+    if (alarm.is_active && alarm.days_of_week.length > 0) {
+      scheduleAlarm(alarm).catch(() => {});
+    }
+    return () => {
+      stopAlarmSound();
+      stopNativeAlarmAudio();
+    };
+  }, [alarm]);
+
   // Block hardware back on Android
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
@@ -138,6 +187,8 @@ export default function AlarmRingingScreen() {
               startScan();
               return;
             }
+            await stopAlarmSound();
+            await stopNativeAlarmAudio();
             navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
           },
         },
@@ -161,7 +212,7 @@ export default function AlarmRingingScreen() {
       <View className="flex-1 px-6 items-center justify-between pt-12 pb-4">
         <View className="items-center">
           <View className="flex-row items-baseline">
-            <Text className="text-ink dark:text-ink-dark font-bold" style={{ fontSize: 96 }}>
+            <Text className="text-ink dark:text-ink-dark font-bold" style={{ fontSize: 96, lineHeight: 108 }}>
               {hhmm}
             </Text>
             <Text variant="muted" className="text-2xl ml-2">{period}</Text>
@@ -171,7 +222,7 @@ export default function AlarmRingingScreen() {
           )}
         </View>
 
-        <View className="items-center">
+        <Pressable className="items-center" onPress={() => requestKeyguardDismiss()}>
           <View className="w-40 h-40 items-center justify-center mb-8">
             <Animated.View
               style={[
@@ -200,7 +251,7 @@ export default function AlarmRingingScreen() {
           {scanError && (
             <Text className="text-sm text-red-500 mt-3 text-center">{scanError}</Text>
           )}
-        </View>
+        </Pressable>
 
         <Pressable onPress={handleEmergency} hitSlop={20}>
           <Text variant="muted" className="text-[10px] opacity-50">Emergency unblock</Text>
