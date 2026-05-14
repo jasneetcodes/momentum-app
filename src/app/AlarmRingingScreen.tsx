@@ -15,6 +15,7 @@ import { cancelRead, initNfc, readTagUid } from '../services/nfc';
 import { playAlarmSound, stopAlarmSound } from '../services/sound';
 import { isKeyguardSecure, requestKeyguardDismiss, startNativeAlarmAudio, stopNativeAlarmAudio } from '../services/alarmAudio';
 import { scheduleAlarm } from '../services/scheduler';
+import * as AlarmKit from 'momentum-alarm-kit';
 import notifee from '@notifee/react-native';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useAlarmLogStore } from '../stores/alarmLogStore';
@@ -108,6 +109,7 @@ export default function AlarmRingingScreen() {
       if (err === null) {
         await stopAlarmSound();
         await stopNativeAlarmAudio();
+        await AlarmKit.stopAlarm(alarm.id);
         navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
         return;
       }
@@ -189,6 +191,7 @@ export default function AlarmRingingScreen() {
             }
             await stopAlarmSound();
             await stopNativeAlarmAudio();
+            await AlarmKit.stopAlarm(alarm.id);
             navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
           },
         },

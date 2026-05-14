@@ -1,0 +1,7 @@
+{
+  "name": "momentum-alarm-kit",
+  "version": "0.1.0",
+  "description": "Native iOS AlarmKit bridge for Momentum (iOS 26+).",
+  "main": "index.ts",
+  "private": true
+}
