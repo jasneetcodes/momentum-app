@@ -28,6 +28,17 @@
 	<string>12.0</string>
 	<key>NFCReaderUsageDescription</key>
 	<string>Momentum uses NFC to read your Momentum tag for alarm dismissal and session control.</string>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>Momentum schedules alarms that ring through Silent and Focus modes so you can't sleep through them.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>momentum</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
