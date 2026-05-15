@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
 
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.NFC"/>
@@ -13,6 +14,10 @@
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+  <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE"/>
+  <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+    tools:ignore="QueryAllPackagesPermission"/>
   <!-- These require runtime permissions on M -->
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -50,5 +55,47 @@
       android:name=".AlarmTriggerReceiver"
       android:enabled="true"
       android:exported="false"/>
+
+    <!-- Phase 5: App blocking — Accessibility Service + FGS + takeover Activity + Boot Receiver -->
+    <service
+      android:name=".AppBlockingService"
+      android:label="@string/app_blocking_service_label"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService"/>
+      </intent-filter>
+      <meta-data
+        android:name="android.accessibilityservice"
+        android:resource="@xml/app_blocking_service_config"/>
+    </service>
+
+    <service
+      android:name=".AppBlockingForegroundService"
+      android:enabled="true"
+      android:exported="false"
+      android:foregroundServiceType="specialUse">
+      <property
+        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+        android:value="app-focus-session"/>
+    </service>
+
+    <activity
+      android:name=".BlockedAppActivity"
+      android:exported="false"
+      android:launchMode="singleTask"
+      android:excludeFromRecents="true"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"/>
+
+    <receiver
+      android:name=".AppBlockingBootReceiver"
+      android:enabled="true"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED"/>
+        <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+      </intent-filter>
+    </receiver>
   </application>
 </manifest>

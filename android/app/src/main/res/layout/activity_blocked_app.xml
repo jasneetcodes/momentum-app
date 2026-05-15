@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#0E0E0F"
+    android:padding="32dp">
+
+    <!-- Blocked app icon — fallback to a generic lock if package not found -->
+    <ImageView
+        android:id="@+id/blocked_app_icon"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@android:drawable/ic_lock_lock"
+        android:contentDescription="Blocked app icon" />
+
+    <TextView
+        android:id="@+id/blocked_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:textColor="#FFFFFF"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        tools:ignore="HardcodedText"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:text="Locked" />
+
+    <TextView
+        android:id="@+id/blocked_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textColor="#BBBBBB"
+        android:textSize="16sp"
+        android:gravity="center"
+        tools:ignore="HardcodedText"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:text="Tap your Momentum tag to end the session." />
+
+    <TextView
+        android:id="@+id/blocked_footnote"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:textColor="#888888"
+        android:textSize="13sp"
+        android:gravity="center"
+        tools:ignore="HardcodedText"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:text="Uninstalling and reinstalling will not bypass." />
+
+    <Button
+        android:id="@+id/blocked_back_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="48dp"
+        android:text="Back to home"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#01BAEF" />
+</LinearLayout>

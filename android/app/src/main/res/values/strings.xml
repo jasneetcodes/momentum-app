@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">momentum-app</string>
+    <string name="app_blocking_service_label">Momentum App Blocking</string>
+    <string name="app_blocking_service_description">Momentum uses this service to block selected apps during your Lock In sessions and post-alarm focus windows. Apps are blocked by name, so uninstalling and reinstalling does not bypass the block.</string>
 </resources>
