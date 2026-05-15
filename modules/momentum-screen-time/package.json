@@ -1,0 +1,7 @@
+{
+  "name": "momentum-screen-time",
+  "version": "0.1.0",
+  "description": "Native iOS Screen Time / FamilyControls bridge for Momentum app blocking (iOS 16+).",
+  "main": "index.ts",
+  "private": true
+}

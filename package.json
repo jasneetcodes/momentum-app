@@ -24,6 +24,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-task-manager": "~14.0.9",
     "momentum-alarm-kit": "file:./modules/momentum-alarm-kit",
+    "momentum-screen-time": "file:./modules/momentum-screen-time",
     "nativewind": "^4.2.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
