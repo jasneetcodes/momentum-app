@@ -16,6 +16,8 @@ import {
 } from './src/services/scheduler';
 import { useAuthStore } from './src/stores/authStore';
 import { useAlarmLogStore } from './src/stores/alarmLogStore';
+import { useModeSessionStore } from './src/stores/modeSessionStore';
+import { useModeStore } from './src/stores/modeStore';
 
 async function reconcileActiveAlarm() {
   const store = useAlarmLogStore.getState();
@@ -72,8 +74,18 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     reconcileActiveAlarm();
+    // Hydrate mode session: on Android the FGS may have kept blocking alive
+    // while the JS bundle was dead. Pull the open session (if any) so the
+    // UI shows the correct state.
+    useModeSessionStore.getState().hydrate();
+    useModeStore.getState().loadSelectedMode();
+    useModeStore.getState().fetchModes();
+
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') reconcileActiveAlarm();
+      if (state === 'active') {
+        reconcileActiveAlarm();
+        useModeSessionStore.getState().hydrate();
+      }
     });
     return () => sub.remove();
   }, [session]);

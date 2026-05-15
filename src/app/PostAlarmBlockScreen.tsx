@@ -6,6 +6,7 @@ import { Card } from '../components/Card';
 import { Text } from '../components/Text';
 import { SOCIAL_MEDIA_APPS } from '../constants/apps';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { startBlocking, stopBlocking } from '../services/appBlocking';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useAlarmLogStore } from '../stores/alarmLogStore';
 import type { MainStackParamList, RootNavProp } from '../navigation/types';
@@ -68,6 +69,7 @@ export default function PostAlarmBlockScreen() {
       setRemaining(r);
       if (r === 0 && !completedRef.current) {
         completedRef.current = true;
+        stopBlocking().catch(() => {});
         completeBlock();
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       }
@@ -77,6 +79,19 @@ export default function PostAlarmBlockScreen() {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blockEndsAt]);
+
+  // Activate native app blocking for the duration of the post-alarm window.
+  // Safe no-op if AccessibilityService is not enabled (Android) or on iOS
+  // pre-Phase-5B.
+  useEffect(() => {
+    if (!alarm || !blockEndsAt) return;
+    startBlocking(alarm.apps, alarm.block_type, alarm.label || 'Post-alarm block').catch(() => {});
+    return () => {
+      // If the screen unmounts before the timer naturally completes, also stop.
+      stopBlocking().catch(() => {});
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alarm, blockEndsAt]);
 
   // Block hardware back on Android — block must complete
   useEffect(() => {

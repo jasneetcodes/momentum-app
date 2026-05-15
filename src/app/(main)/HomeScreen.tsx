@@ -1,20 +1,47 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../components/Card';
 import { Text } from '../../components/Text';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAuthStore } from '../../stores/authStore';
+import { useModeSessionStore } from '../../stores/modeSessionStore';
+import { useModeStore } from '../../stores/modeStore';
 import type { HomeNavProp } from '../../navigation/types';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hh = String(Math.floor(total / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+  const ss = String(total % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavProp>();
-  const { barStyle, ink } = useThemeColors();
+  const { barStyle, ink, accent } = useThemeColors();
   const profile = useAuthStore((s) => s.profile);
+
+  const activeSession = useModeSessionStore((s) => s.activeSession);
+  const modes = useModeStore((s) => s.modes);
+  const activeMode = useMemo(
+    () => (activeSession ? modes.find((m) => m.id === activeSession.mode_id) ?? null : null),
+    [activeSession, modes],
+  );
+
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!activeSession) { setElapsed(0); return; }
+    const start = new Date(activeSession.activated_at).getTime();
+    const tick = () => setElapsed(Date.now() - start);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [activeSession]);
 
   const firstName = profile?.name?.split(' ')[0] ?? ' ';
 
@@ -36,6 +63,35 @@ export default function HomeScreen() {
               <Ionicons name="settings-outline" size={24} color={ink} />
             </Pressable>
           </View>
+
+          {activeSession && (
+            <Pressable
+              onPress={() => navigation.jumpTo('LockIn')}
+              className="mt-6 active:opacity-70"
+            >
+              <Card>
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-3 flex-1">
+                    <View
+                      className="w-10 h-10 rounded-full items-center justify-center"
+                      style={{ backgroundColor: accent + '1A' }}
+                    >
+                      <Ionicons name="lock-closed" size={18} color={accent} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-base font-semibold">
+                        {activeMode?.label ?? 'Locked in'}
+                      </Text>
+                      <Text variant="muted" className="text-xs mt-0.5" style={{ fontVariant: ['tabular-nums'] }}>
+                        {formatElapsed(elapsed)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={ink} />
+                </View>
+              </Card>
+            </Pressable>
+          )}
 
           <View className="mt-10">
             <View className="flex-row items-baseline">

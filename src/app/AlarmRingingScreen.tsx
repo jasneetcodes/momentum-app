@@ -19,6 +19,7 @@ import * as AlarmKit from 'momentum-alarm-kit';
 import notifee from '@notifee/react-native';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useAlarmLogStore } from '../stores/alarmLogStore';
+import { useModeSessionStore } from '../stores/modeSessionStore';
 import type { MainStackParamList, RootNavProp } from '../navigation/types';
 
 type RouteProps = RouteProp<MainStackParamList, 'AlarmRinging'>;
@@ -45,6 +46,9 @@ export default function AlarmRingingScreen() {
   const fire = useAlarmLogStore((s) => s.fire);
   const dismissNfc = useAlarmLogStore((s) => s.dismissNfc);
   const dismissEmergency = useAlarmLogStore((s) => s.dismissEmergency);
+  // If a mode session is already active, the user is already in a blocking
+  // state. We skip the post-alarm block screen entirely (mode takes priority).
+  const activeModeSession = useModeSessionStore((s) => s.activeSession);
 
   const alarm = useMemo(() => alarms.find((a) => a.id === alarmId), [alarms, alarmId]);
 
@@ -110,7 +114,13 @@ export default function AlarmRingingScreen() {
         await stopAlarmSound();
         await stopNativeAlarmAudio();
         await AlarmKit.stopAlarm(alarm.id);
-        navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
+        if (activeModeSession) {
+          // Mode is already blocking apps — no need for a second post-alarm
+          // block on top. Go straight to Home.
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        } else {
+          navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
+        }
         return;
       }
       if (err === 'unknown_tag') {
@@ -192,7 +202,11 @@ export default function AlarmRingingScreen() {
             await stopAlarmSound();
             await stopNativeAlarmAudio();
             await AlarmKit.stopAlarm(alarm.id);
-            navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
+            if (activeModeSession) {
+              navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+            } else {
+              navigation.replace('PostAlarmBlock', { alarmId: alarm.id });
+            }
           },
         },
       ],

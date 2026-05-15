@@ -17,6 +17,7 @@ export type MainStackParamList = {
   AlarmSetup: { alarmId?: string };
   AlarmRinging: { alarmId: string };
   PostAlarmBlock: { alarmId: string };
+  CreateMode: { modeId?: string };
 };
 
 export type RootNavProp = NativeStackNavigationProp<MainStackParamList>;

@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import AlarmRingingScreen from '../app/AlarmRingingScreen';
 import AlarmSetupScreen from '../app/(main)/AlarmSetupScreen';
+import CreateModeScreen from '../app/(main)/CreateModeScreen';
 import ManageTagsScreen from '../app/(main)/ManageTagsScreen';
 import NFCRegisterScreen from '../app/(main)/NFCRegisterScreen';
 import PostAlarmBlockScreen from '../app/PostAlarmBlockScreen';
@@ -40,6 +41,11 @@ export default function MainNavigator() {
           gestureEnabled: false,
           animation: 'fade',
         }}
+      />
+      <Stack.Screen
+        name="CreateMode"
+        component={CreateModeScreen}
+        options={{ animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>
   );

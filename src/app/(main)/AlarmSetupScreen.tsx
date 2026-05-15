@@ -14,6 +14,7 @@ import { DEFAULT_BLOCKED_APPS, SOCIAL_MEDIA_APPS } from '../../constants/apps';
 import { ALARM_SOUNDS, DEFAULT_SOUND } from '../../constants/sounds';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAlarmStore } from '../../stores/alarmStore';
+import { useAlarmLogStore } from '../../stores/alarmLogStore';
 import type { MainStackParamList } from '../../navigation/types';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -53,6 +54,29 @@ function formatTimeDisplay(date: Date): string {
   return `${displayHours}:${mins} ${period}`;
 }
 
+/**
+ * Next clock fire for `time` and `days` (pg-weekday array; [] = one-off).
+ * Returns null only if all days have been pruned away (should not happen
+ * in normal use).
+ */
+function computeNextFire(time: Date, days: number[]): Date | null {
+  const now = new Date();
+  const candidate = new Date(now);
+  candidate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+
+  if (days.length === 0) {
+    if (candidate <= now) candidate.setDate(candidate.getDate() + 1);
+    return candidate;
+  }
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(candidate);
+    d.setDate(candidate.getDate() + i);
+    if (days.includes(d.getDay()) && d > now) return d;
+  }
+  return null;
+}
+
 export default function AlarmSetupScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProps>();
@@ -62,6 +86,7 @@ export default function AlarmSetupScreen() {
   const alarms = useAlarmStore((s) => s.alarms);
   const createAlarm = useAlarmStore((s) => s.createAlarm);
   const updateAlarm = useAlarmStore((s) => s.updateAlarm);
+  const activeAlarmLog = useAlarmLogStore((s) => s.activeLog);
 
   const editing = useMemo(
     () => (editingId ? alarms.find((a) => a.id === editingId) : null),
@@ -169,6 +194,23 @@ export default function AlarmSetupScreen() {
   };
 
   const handleSave = async () => {
+    // Conflict guard: cannot create/edit an alarm whose next fire falls inside
+    // a currently-running post-alarm block window.
+    const blockEnds = activeAlarmLog?.block_ends_at
+      ? new Date(activeAlarmLog.block_ends_at)
+      : null;
+    if (blockEnds && !activeAlarmLog?.block_completed && blockEnds > new Date()) {
+      const next = computeNextFire(time, days);
+      if (next && next < blockEnds) {
+        const blockEndsLabel = blockEnds.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        Alert.alert(
+          'Conflicts with post-alarm block',
+          `Your current post-alarm block runs until ${blockEndsLabel}. This alarm would fire inside that window. Pick a later time or wait for the block to finish.`,
+        );
+        return;
+      }
+    }
+
     // Ask for the lock-screen full-screen-alarm permission before saving.
     // On Android 13- and iOS this resolves true immediately.
     await ensureFullScreenIntentGranted();
