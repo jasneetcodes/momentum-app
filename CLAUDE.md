@@ -2,6 +2,78 @@
 
 ## In-Progress Work Log
 
+### 2026-05-15 — Phase 5: Brick Mode (Lock In) + unified app blocking
+
+**Current branch:** `phase5`. Phase 4 (alarms) is merged to `main`.
+
+**Phase split** (mirrors the Phase 4 iOS A/B split):
+- **Phase 5A (Windows-doable, implemented, awaiting device testing)** —
+  full Android-side blocking, all UI, schema, JS state/services. iOS gets
+  a no-op skeleton module that compiles but does nothing.
+- **Phase 5B (Mac-required, deferred)** — fill in
+  `modules/momentum-screen-time/ios/ScreenTimeBridge.swift` with real
+  FamilyControls / ManagedSettings calls. Requires Mac + Xcode + iOS 16+
+  physical device. Documented in detail in
+  [docs/block-flow-ios.md](docs/block-flow-ios.md) and the plan file.
+
+**What Phase 5A ships (ready to test):**
+- `modes` table + `mode_sessions` RLS migrations
+  (`supabase/phase5_modes.sql` — MUST run in Supabase SQL editor before
+  testing).
+- `modeStore` (CRUD + persisted `selectedModeId`) and
+  `modeSessionStore` (hydrate-on-launch, activate, deactivate via NFC,
+  emergency unblock, totals).
+- Android native module under `android/app/src/main/java/com/momentumapp/`:
+  - `AppBlockingService` (AccessibilityService) — detects window changes
+  - `AppBlockingForegroundService` — `START_STICKY`, persistent
+    notification, survives task removal and OOM
+  - `BlockedAppActivity` — full-screen Momentum-branded takeover when
+    the user opens a blocked app
+  - `AppBlockingBootReceiver` — restores blocking after device reboot
+  - `AppBlockingState` — SharedPreferences-backed persisted state
+    (blocked set survives uninstall+reinstall — package name remains in
+    the set so re-installed apps are immediately blocked again)
+- LockInScreen: default state + active state (darker UI, live HH:MM:SS
+  timer, pulsing ring, NFC scan loop, emergency unblock).
+- CreateModeScreen: label + block_type + app picker, defaults to
+  social-media apps.
+- HomeScreen: active session banner showing mode label + live elapsed time.
+- Conflict guards:
+  - Mode activation rejected during active post-alarm block
+  - Alarm dismissal during active mode skips PostAlarmBlock entirely
+    (mode is already blocking; no second block needed)
+  - AlarmSetupScreen validates next fire time isn't inside an active
+    block window
+
+**Permissions to grant before testing on Android:**
+1. Open the app, tap "Lock In" — the permission modal appears.
+2. Tap "Open Settings" → Accessibility → enable Momentum.
+3. Return to the app and tap "Lock In" again to activate.
+
+**Testing checklist:** see Phase 5A section of the plan file at
+`~/.claude/plans/currently-when-1-when-glistening-eagle.md` (15 steps
+covering takeover, reinstall-doesn't-bypass, reboot survival, conflict
+rules, emergency unblock).
+
+**Phase 5B blockers (do NOT start until Mac access):**
+- FamilyControls capability + entitlement (Xcode)
+- Shield Configuration extension target (custom Momentum branding on
+  Apple's system shield)
+- `apps_ios_tokens` schema migration (`supabase/phase5b_ios_tokens.sql`)
+- New iOS-only app picker screen wrapping Apple's `FamilyActivityPicker`
+  (Apple does not let us map bundle IDs → ApplicationTokens; user MUST
+  pick via Apple's system UI)
+
+**Architectural note for future Claude sessions:** the AccessibilityService
+reads `AppBlockingState` from SharedPreferences on every window-state
+event rather than holding it in memory. This is intentional — it's the
+mechanism that lets blocking survive JS bundle teardown, OOM kills, and
+reboots. Do not optimize this with an in-memory cache without
+understanding the survivability contract documented in
+[docs/block-flow-android.md](docs/block-flow-android.md).
+
+---
+
 ### 2026-05-14 — Alarm activity launch when app killed + phone unlocked (NOT WORKING)
 
 **Working scenarios (Android, on Pixel):**
