@@ -5,4 +5,11 @@
   <style name="Theme.App.SplashScreen" parent="AppTheme">
     <item name="android:windowBackground">@drawable/splashscreen_logo</item>
   </style>
+  <!-- Fullscreen theme for the blocked-app takeover. Must descend from
+       Theme.AppCompat because BlockedAppActivity is an AppCompatActivity —
+       a platform Theme.DeviceDefault theme crashes AppCompat's setContentView. -->
+  <style name="Theme.App.BlockedApp" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <item name="android:windowFullscreen">true</item>
+    <item name="android:windowContentOverlay">@null</item>
+  </style>
 </resources>

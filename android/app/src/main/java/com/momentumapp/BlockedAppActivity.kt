@@ -1,7 +1,6 @@
 package com.momentumapp
 
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
@@ -25,7 +24,6 @@ class BlockedAppActivity : AppCompatActivity() {
     setContentView(R.layout.activity_blocked_app)
 
     val pkg = intent.getStringExtra(EXTRA_PACKAGE_NAME) ?: ""
-    val sessionLabel = intent.getStringExtra(EXTRA_SESSION_LABEL) ?: "Locked in"
 
     val title = findViewById<TextView>(R.id.blocked_title)
     val subtitle = findViewById<TextView>(R.id.blocked_subtitle)
@@ -33,20 +31,28 @@ class BlockedAppActivity : AppCompatActivity() {
     val backBtn = findViewById<View>(R.id.blocked_back_button)
     val appIcon = findViewById<ImageView>(R.id.blocked_app_icon)
 
-    val displayName = resolveAppLabel(pkg)
-    title.text = "$displayName is locked"
-    subtitle.text = "$sessionLabel — tap your Momentum tag to end the session."
+    // Render immediately with placeholders — PackageManager.getApplicationIcon
+    // and getApplicationLabel can each take 100s of ms on first call, which
+    // (combined with the React Native runtime sharing this process's main
+    // thread) was pushing onCreate past the 5s ANR budget and letting the
+    // blocked app through.
+    title.text = "This app is locked"
+    subtitle.text = "Locked until it's over. That's the point."
     footnote.text = "Uninstalling and reinstalling won't help. Apps stay locked while you're locked in."
-
-    try {
-      val icon = packageManager.getApplicationIcon(pkg)
-      appIcon.setImageDrawable(icon)
-    } catch (_: PackageManager.NameNotFoundException) {
-      // App was uninstalled but still in our blocked set — leave the
-      // default lock icon visible.
-    }
-
     backBtn.setOnClickListener { goHome() }
+
+    Thread {
+      val pm = packageManager
+      val label = try {
+        val info = pm.getApplicationInfo(pkg, 0)
+        pm.getApplicationLabel(info).toString()
+      } catch (_: Throwable) { null }
+      val drawable = try { pm.getApplicationIcon(pkg) } catch (_: Throwable) { null }
+      runOnUiThread {
+        if (!label.isNullOrBlank()) title.text = "$label is locked"
+        if (drawable != null) appIcon.setImageDrawable(drawable)
+      }
+    }.start()
   }
 
   override fun onBackPressed() {
@@ -61,16 +67,6 @@ class BlockedAppActivity : AppCompatActivity() {
     }
     startActivity(home)
     finish()
-  }
-
-  private fun resolveAppLabel(pkg: String): String {
-    if (pkg.isBlank()) return "This app"
-    return try {
-      val info = packageManager.getApplicationInfo(pkg, 0)
-      packageManager.getApplicationLabel(info).toString()
-    } catch (_: PackageManager.NameNotFoundException) {
-      "This app"
-    }
   }
 
   companion object {

@@ -45,17 +45,21 @@ data class AppBlockingState(
       sessionLabel: String,
       sessionStartedAt: Long,
     ) {
+      // .commit() (not .apply()) — synchronous flush to disk. The :blocking
+      // process reads this state on session start; with async .apply(),
+      // the new state might still be in the writer process's memory cache
+      // when the reader's main thread fires.
       ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
         .putBoolean(K_IS_BLOCKING, isBlocking)
         .putString(K_PACKAGES, packages.joinToString(","))
         .putString(K_BLOCK_TYPE, blockType)
         .putString(K_SESSION_LABEL, sessionLabel)
         .putLong(K_STARTED_AT, sessionStartedAt)
-        .apply()
+        .commit()
     }
 
     fun clear(ctx: Context) {
-      ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+      ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().commit()
     }
   }
 }

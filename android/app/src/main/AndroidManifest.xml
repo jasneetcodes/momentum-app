@@ -56,7 +56,7 @@
       android:enabled="true"
       android:exported="false"/>
 
-    <!-- Phase 5: App blocking — Accessibility Service + FGS + takeover Activity + Boot Receiver -->
+    <!-- Phase 5: App blocking — Accessibility Service + FGS + takeover Activity + Boot Receiver. -->
     <service
       android:name=".AppBlockingService"
       android:label="@string/app_blocking_service_label"
@@ -86,7 +86,7 @@
       android:launchMode="singleTask"
       android:excludeFromRecents="true"
       android:taskAffinity=""
-      android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"/>
+      android:theme="@style/Theme.App.BlockedApp"/>
 
     <receiver
       android:name=".AppBlockingBootReceiver"

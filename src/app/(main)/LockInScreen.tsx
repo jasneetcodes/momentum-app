@@ -78,7 +78,11 @@ export default function LockInScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [emergencyUsed, setEmergencyUsed] = useState(0);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [armed, setArmed] = useState(false);
   const cancelledRef = useRef(false);
+  const armTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const ARM_TIMEOUT_MS = 20000;
 
   // Initial data fetch + selected mode hydration
   useEffect(() => {
@@ -107,11 +111,17 @@ export default function LockInScreen() {
     return () => clearInterval(id);
   }, [activeSession]);
 
-  // Pulsing ring animation
+  // Pulsing ring animation — only while armed (i.e. NFC is actively listening).
+  // Pause animation otherwise so the ring carries information (you tapped, we're
+  // listening) rather than being decorative.
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   useEffect(() => {
-    if (!activeSession) return;
+    if (!activeSession || !armed) {
+      scale.value = 1;
+      opacity.value = 1;
+      return;
+    }
     scale.value = withRepeat(
       withTiming(1.25, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
       -1,
@@ -122,14 +132,27 @@ export default function LockInScreen() {
       -1,
       true,
     );
-  }, [activeSession, opacity, scale]);
+  }, [activeSession, armed, opacity, scale]);
 
   const ringStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
 
-  // NFC scan loop — only runs in active state
+  // NFC scan loop — only runs while user has tapped the ring to arm scanning.
+  // Bounded by ARM_TIMEOUT_MS so we don't hold the NFC stack open indefinitely;
+  // an always-on loop here was competing with the AccessibilityService for the
+  // main thread and contributing to the blocked-app ANR.
+  const disarm = useCallback(() => {
+    if (armTimeoutRef.current) {
+      clearTimeout(armTimeoutRef.current);
+      armTimeoutRef.current = null;
+    }
+    cancelledRef.current = true;
+    cancelRead();
+    setArmed(false);
+  }, []);
+
   const startScan = useCallback(async () => {
     if (!activeSession || cancelledRef.current) return;
     setScanError(null);
@@ -144,8 +167,11 @@ export default function LockInScreen() {
       const err = await deactivateNfc(uid);
       if (err === null) {
         await stopBlocking();
-        // Refresh today's total since we just closed out a session
         totalMinutesTodayFn().then(setTotalToday);
+        if (armTimeoutRef.current) {
+          clearTimeout(armTimeoutRef.current);
+          armTimeoutRef.current = null;
+        }
         return;
       }
       if (err === 'unknown_tag') setScanError("That doesn't look like a Momentum tag.");
@@ -161,13 +187,31 @@ export default function LockInScreen() {
   }, [activeSession, deactivateNfc, totalMinutesTodayFn]);
 
   useEffect(() => {
+    if (!activeSession || !armed) return;
     cancelledRef.current = false;
-    if (activeSession) startScan();
+    setScanError(null);
+    startScan();
+    armTimeoutRef.current = setTimeout(() => {
+      cancelledRef.current = true;
+      cancelRead();
+      setArmed(false);
+      setScanError('No tag detected — tap to try again.');
+    }, ARM_TIMEOUT_MS);
     return () => {
       cancelledRef.current = true;
       cancelRead();
+      if (armTimeoutRef.current) {
+        clearTimeout(armTimeoutRef.current);
+        armTimeoutRef.current = null;
+      }
     };
-  }, [activeSession, startScan]);
+  }, [activeSession, armed, startScan]);
+
+  // Reset armed state whenever the session ends/changes so the next session
+  // starts in idle.
+  useEffect(() => {
+    if (!activeSession) setArmed(false);
+  }, [activeSession]);
 
   // ------------------ Activation flow ------------------
 
@@ -282,32 +326,54 @@ export default function LockInScreen() {
           </View>
 
           <View className="flex-1 items-center justify-center">
-            <Text style={{ color: '#fff', fontSize: 56, fontVariant: ['tabular-nums'], fontWeight: '700' }}>
+            <Text style={{ color: '#fff', fontSize: 56, lineHeight: 64, fontVariant: ['tabular-nums'], fontWeight: '700', marginBottom: 48 }}>
               {formatElapsed(elapsed)}
             </Text>
 
-            <View className="w-56 h-56 items-center justify-center mt-8">
-              <Animated.View
-                style={[{
-                  position: 'absolute',
-                  width: 224,
-                  height: 224,
-                  borderRadius: 112,
-                  borderWidth: 2,
-                  borderColor: accent,
-                }, ringStyle]}
-              />
+            <Pressable
+              onPress={() => { if (!armed) setArmed(true); }}
+              disabled={armed}
+              className="w-56 h-56 items-center justify-center"
+            >
+              {armed && (
+                <Animated.View
+                  style={[{
+                    position: 'absolute',
+                    width: 224,
+                    height: 224,
+                    borderRadius: 112,
+                    borderWidth: 2,
+                    borderColor: accent,
+                  }, ringStyle]}
+                />
+              )}
               <View
                 className="w-32 h-32 rounded-full items-center justify-center"
-                style={{ backgroundColor: accent + '1A' }}
+                style={{ backgroundColor: armed ? accent + '33' : accent + '1A' }}
               >
                 <Ionicons name="hardware-chip-outline" size={64} color={accent} />
               </View>
-            </View>
+            </Pressable>
 
-            <Text className="text-base mt-8" style={{ color: '#fff' }}>
-              Tap your tag to finish
-            </Text>
+            {armed ? (
+              <>
+                <Text className="text-base mt-8 text-center px-6" style={{ color: '#fff' }}>
+                  Hold your tag to the back of your phone…
+                </Text>
+                <Pressable onPress={disarm} hitSlop={12} className="mt-3">
+                  <Text className="text-xs" style={{ color: '#888' }}>Cancel</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text className="text-lg font-semibold mt-8 text-center px-6" style={{ color: '#fff' }}>
+                  Tap the ring to scan your tag
+                </Text>
+                <Text className="text-sm mt-2 text-center px-6" style={{ color: '#888' }}>
+                  Then hold your Momentum tag to the back of your phone.
+                </Text>
+              </>
+            )}
             {scanError && (
               <Text className="text-sm text-red-400 mt-3 text-center">{scanError}</Text>
             )}
@@ -402,6 +468,18 @@ export default function LockInScreen() {
                   <Pressable
                     key={mode.id}
                     onPress={() => { selectMode(mode.id); setDropdownOpen(false); }}
+                    onLongPress={() => {
+                      Alert.alert(mode.label, undefined, [
+                        {
+                          text: 'Edit',
+                          onPress: () => {
+                            setDropdownOpen(false);
+                            navigation.navigate('CreateMode', { modeId: mode.id });
+                          },
+                        },
+                        { text: 'Cancel', style: 'cancel' },
+                      ]);
+                    }}
                     className="px-6 py-4 flex-row items-center justify-between active:opacity-50"
                     style={{ borderBottomWidth: 1, borderBottomColor: muted + '20' }}
                   >
