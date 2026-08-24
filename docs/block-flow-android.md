@@ -21,7 +21,7 @@ which routes to the native Kotlin module on Android.
 
 | Caller | Trigger to start | Trigger to end |
 |---|---|---|
-| Mode session | "Lock In" button tap (or future NFC activation) | NFC tag tap on LockInScreen, or emergency unblock |
+| Mode session | "Lock In" button tap (button only — NFC-to-activate was considered and dropped) | NFC tag tap on LockInScreen, or emergency unblock |
 | Post-alarm block | Successful NFC dismiss on AlarmRingingScreen | Countdown reaches zero, or screen unmount |
 
 ---

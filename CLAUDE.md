@@ -113,7 +113,7 @@ paired with a physical NFC tag. It has two core MVP features:
 ### 2. Brick Mode
 - User creates custom Momentum Modes (e.g. "Studying", "Family Time")
 - Each mode has a list of apps to block (blacklist) or allow (whitelist)
-- Mode is activated by tapping NFC tag or pressing a button
+- Mode is activated by pressing a button (button only — NFC-to-activate was considered and explicitly dropped)
 - Mode can ONLY be deactivated by tapping the NFC tag
 - A visible timer runs for the duration of the session
 - Sessions are stored for streaks and analytics
@@ -171,7 +171,7 @@ Signup form fields (in order): First name | Last name (side-by-side row), Email,
 3. Alarm creation + NFC dismiss flow
 4. 30-min default app block post-alarm
 5. Mode creation (blacklist/whitelist + app picker)
-6. Mode activation (NFC or button) + deactivation (NFC only)
+6. Mode activation (button only) + deactivation (NFC only)
 7. Live session timer on ActiveModeScreen
 
 ## Brand & Visual Design
@@ -282,9 +282,8 @@ Center hero: Momentum NFC tag product photo — large, centred, crisp
 Bottom: full-width "Lock In" primary button (#01BAEF fill)
 
 Tapping "Lock In" starts the session immediately (activated_via = 'button')
-NFC tap also starts and immediately locks — handled by the NFC listener service
-
-
+Button is the only way to start a session — NFC-to-activate was considered and
+explicitly dropped. NFC is used only to end an active session (see below).
 
 Active session state:
 
@@ -587,7 +586,7 @@ Why both dismissed_via_uid and dismissed_via_nfc_tag_id?
 
 
 ### 6. modes
-User-defined custom blocking configurations. Unlike alarms (time-based), modes are activated manually by the user — by tapping the NFC tag or pressing a button in the app.
+User-defined custom blocking configurations. Unlike alarms (time-based), modes are activated manually by the user — by pressing a button in the app (NFC-to-activate was considered and explicitly dropped; NFC is used only to deactivate).
 
 Columns
 
@@ -605,7 +604,7 @@ Columns
 
 Modes vs Alarms
 • Alarm = time-based trigger (fires at 7am, requires NFC to dismiss).
-• Mode = manual blocking config (activated by user tap/button, requires NFC to deactivate).
+• Mode = manual blocking config (activated by button, requires NFC to deactivate).
 • Each has its own log table for tracking history.
 
 
@@ -620,7 +619,7 @@ Columns
 | user_id                  | uuid (FK)   | References profiles(id). Cascade deletes.                                |
 | mode_id                  | uuid (FK)   | References modes(id). Cascade deletes if mode is deleted.                |
 | activated_at             | timestamptz | When the session started. Defaults to now().                             |
-| activated_via            | text        | How it was activated: 'nfc' or 'button'.                                 |
+| activated_via            | text        | How it was activated. Always 'button' in practice — NFC-to-activate was considered and explicitly dropped. Column stays generic text rather than a DB enum in case that changes. |
 | deactivated_at           | timestamptz | When the session ended. Null = still active.                             |
 | deactivated_via          | text        | 'nfc' (normal) or 'emergency' (used an emergency unblock) or null.       |
 | deactivated_via_uid      | text        | Raw UID string of the tag used to deactivate. Permanent record.          |
@@ -669,11 +668,10 @@ Mode (Brick) Flow
    - apps: [Instagram, YouTube, TikTok]
    - block_type: 'blacklist'
  
-2. User taps NFC tag (or presses button) to activate
-   - App verifies tag belongs to user (same nfc_tags check)
+2. User presses the "Lock In" button to activate
    - New row in mode_sessions
    - activated_at = now()
-   - activated_via = 'nfc' or 'button'
+   - activated_via = 'button'
    - deactivated_at = null
  
 3. App activates blocking on device
