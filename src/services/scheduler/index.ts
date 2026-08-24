@@ -8,6 +8,7 @@ const impl = Platform.OS === 'android' ? android : ios;
 
 export const initializeNotifications = impl.initializeNotifications;
 export const requestNotificationPermissions = impl.requestNotificationPermissions;
+export const checkNotificationPermissions = impl.checkNotificationPermissions;
 export const scheduleAlarm = impl.scheduleAlarm;
 export const cancelAlarm = impl.cancelAlarm;
 export const rescheduleAll = impl.rescheduleAll;

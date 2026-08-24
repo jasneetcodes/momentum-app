@@ -7,6 +7,10 @@ interface AlarmAudioBridge {
   openFullScreenIntentSettings: () => Promise<boolean>;
   isKeyguardSecure: () => Promise<boolean>;
   requestKeyguardDismiss: () => Promise<void>;
+  canScheduleExactAlarms: () => Promise<boolean>;
+  openExactAlarmSettings: () => Promise<boolean>;
+  isIgnoringBatteryOptimizations: () => Promise<boolean>;
+  requestIgnoreBatteryOptimizations: () => Promise<boolean>;
 }
 
 const Native = NativeModules.MomentumAlarmAudio as AlarmAudioBridge | undefined;
@@ -67,4 +71,44 @@ export async function requestKeyguardDismiss(): Promise<void> {
   try {
     await Native.requestKeyguardDismiss();
   } catch {}
+}
+
+/** Android 12+ requires "Alarms & reminders" access for exact alarms to fire on schedule. */
+export async function canScheduleExactAlarms(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !Native) return true;
+  try {
+    return await Native.canScheduleExactAlarms();
+  } catch {
+    return true;
+  }
+}
+
+/** Opens the system "Alarms & reminders" settings page where the user grants exact-alarm access. */
+export async function openExactAlarmSettings(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !Native) return false;
+  try {
+    return await Native.openExactAlarmSettings();
+  } catch {
+    return false;
+  }
+}
+
+/** Whether Momentum is exempt from battery optimization. Recommended, not required. */
+export async function isIgnoringBatteryOptimizations(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !Native) return true;
+  try {
+    return await Native.isIgnoringBatteryOptimizations();
+  } catch {
+    return true;
+  }
+}
+
+/** Opens the system "ignore battery optimizations" prompt for this app. */
+export async function requestIgnoreBatteryOptimizations(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !Native) return false;
+  try {
+    return await Native.requestIgnoreBatteryOptimizations();
+  } catch {
+    return false;
+  }
 }

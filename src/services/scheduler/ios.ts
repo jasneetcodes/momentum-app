@@ -88,6 +88,12 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return true;
 }
 
+/** Read-only check — does not prompt. Used by onboarding to render current status. */
+export async function checkNotificationPermissions(): Promise<boolean> {
+  const { status } = await Notifications.getPermissionsAsync();
+  return status === 'granted';
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Path 1: AlarmKit (iOS 26+)
 // ────────────────────────────────────────────────────────────────────────────

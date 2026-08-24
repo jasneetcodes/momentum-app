@@ -1,6 +1,7 @@
 export {
   initializeNotifications,
   requestNotificationPermissions,
+  checkNotificationPermissions,
   scheduleAlarm,
   cancelAlarm,
   rescheduleAll,

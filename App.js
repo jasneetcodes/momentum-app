@@ -9,15 +9,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AuthNavigator from './src/navigation/AuthNavigator';
 import MainNavigator from './src/navigation/MainNavigator';
+import OnboardingScreen from './src/app/OnboardingScreen';
 import { navigationRef, navigateToAlarmRinging } from './src/navigation/ref';
-import {
-  initializeNotifications,
-  requestNotificationPermissions,
-} from './src/services/scheduler';
+import { initializeNotifications } from './src/services/scheduler';
 import { useAuthStore } from './src/stores/authStore';
 import { useAlarmLogStore } from './src/stores/alarmLogStore';
 import { useModeSessionStore } from './src/stores/modeSessionStore';
 import { useModeStore } from './src/stores/modeStore';
+import { useOnboardingStore } from './src/stores/onboardingStore';
 
 async function reconcileActiveAlarm() {
   const store = useAlarmLogStore.getState();
@@ -58,6 +57,10 @@ export default function App() {
   const initialized = useAuthStore((s) => s.initialized);
   const initialize = useAuthStore((s) => s.initialize);
 
+  const onboardingCompleted = useOnboardingStore((s) => s.completed);
+  const onboardingHydrated = useOnboardingStore((s) => s.hydrated);
+  const hydrateOnboarding = useOnboardingStore((s) => s.hydrate);
+
   useEffect(() => {
     const unsubscribe = initialize();
     return unsubscribe;
@@ -65,14 +68,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    hydrateOnboarding();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     initializeNotifications();
-    requestNotificationPermissions();
   }, []);
 
   // After the navigation tree is ready, reconcile any in-flight alarm.
-  // Also rerun whenever the app comes back to the foreground.
+  // Also rerun whenever the app comes back to the foreground. Gated on
+  // onboarding being complete — MainNavigator (and its AlarmRinging route)
+  // isn't mounted until then, so navigating there would fail.
   useEffect(() => {
-    if (!session) return;
+    if (!session || !onboardingCompleted) return;
     reconcileActiveAlarm();
     // Hydrate mode session: on Android the FGS may have kept blocking alive
     // while the JS bundle was dead. Pull the open session (if any) so the
@@ -88,10 +97,11 @@ export default function App() {
       }
     });
     return () => sub.remove();
-  }, [session]);
+  }, [session, onboardingCompleted]);
 
-  // Hold render until the persisted session is restored to prevent auth-stack flash
-  if (!initialized) {
+  // Hold render until the persisted session + onboarding flag are restored,
+  // to prevent an auth-stack / onboarding flash.
+  if (!initialized || !onboardingHydrated) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0E0E0F', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color="#01BAEF" size="large" />
@@ -115,10 +125,14 @@ export default function App() {
           ref={navigationRef}
           linking={linking}
           onReady={() => {
-            if (session) reconcileActiveAlarm();
+            if (session && onboardingCompleted) reconcileActiveAlarm();
           }}
         >
-          {session ? <MainNavigator /> : <AuthNavigator />}
+          {session ? (
+            onboardingCompleted ? <MainNavigator /> : <OnboardingScreen />
+          ) : (
+            <AuthNavigator />
+          )}
         </NavigationContainer>
       </SafeAreaProvider>
     </GestureHandlerRootView>

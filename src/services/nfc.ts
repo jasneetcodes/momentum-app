@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import NfcManager, { NfcTech } from 'react-native-nfc-manager';
 
 let initialized = false;
@@ -9,6 +10,28 @@ export async function initNfc(): Promise<boolean> {
   await NfcManager.start();
   initialized = true;
   return true;
+}
+
+/**
+ * Whether the device's NFC radio is currently turned on. Only meaningful on
+ * Android — iOS has no system-level NFC toggle exposed to apps, so this
+ * always resolves true there (hardware support is covered by initNfc()).
+ */
+export async function isNfcEnabled(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    return await NfcManager.isEnabled();
+  } catch {
+    return true;
+  }
+}
+
+/** Opens the system NFC settings toggle. Android only. */
+export async function openNfcSettings(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await NfcManager.goToNfcSetting();
+  } catch {}
 }
 
 export async function readTagUid(): Promise<string> {

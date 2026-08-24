@@ -92,6 +92,12 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return settings.authorizationStatus === AuthorizationStatus.AUTHORIZED;
 }
 
+/** Read-only check — does not prompt. Used by onboarding to render current status. */
+export async function checkNotificationPermissions(): Promise<boolean> {
+  const settings = await notifee.getNotificationSettings();
+  return settings.authorizationStatus === AuthorizationStatus.AUTHORIZED;
+}
+
 async function scheduleOne(alarm: Alarm, pgWeekday: number | null): Promise<void> {
   const fire = nextOccurrence(alarm.time, pgWeekday ?? undefined);
   const trigger: TimestampTrigger = {

@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -191,6 +192,78 @@ class AlarmAudioModule(reactContext: ReactApplicationContext) :
       promise.resolve(true)
     } catch (e: Throwable) {
       promise.reject("OpenFullScreenIntentSettingsError", e)
+    }
+  }
+
+  /**
+   * Android 12+ (S) requires the user to grant "Alarms & reminders" via
+   * Settings before `AlarmManager.setAlarmClock()` will fire on schedule.
+   * `USE_EXACT_ALARM` (declared in the manifest) should auto-grant this on
+   * most devices for an alarm-clock-class app, but some OEMs don't honor it
+   * — this lets onboarding verify rather than assume.
+   */
+  @ReactMethod
+  fun canScheduleExactAlarms(promise: Promise) {
+    try {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        promise.resolve(true)
+        return
+      }
+      val am = reactApplicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+      promise.resolve(am.canScheduleExactAlarms())
+    } catch (e: Throwable) {
+      promise.reject("ExactAlarmCheckError", e)
+    }
+  }
+
+  /** Opens the system "Alarms & reminders" settings page for this app. No-op below API 31. */
+  @ReactMethod
+  fun openExactAlarmSettings(promise: Promise) {
+    try {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        promise.resolve(false)
+        return
+      }
+      val ctx = reactApplicationContext
+      val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+        .setData(Uri.parse("package:${ctx.packageName}"))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      ctx.startActivity(intent)
+      promise.resolve(true)
+    } catch (e: Throwable) {
+      promise.reject("OpenExactAlarmSettingsError", e)
+    }
+  }
+
+  /**
+   * Whether Momentum is exempt from battery optimization. Not required for
+   * `setAlarmClock()` alarms on stock Android (those are Doze-exempt by
+   * design), but several OEM battery managers (Samsung, Xiaomi, OnePlus)
+   * kill background processes regardless — recommended, not required.
+   */
+  @ReactMethod
+  fun isIgnoringBatteryOptimizations(promise: Promise) {
+    try {
+      val ctx = reactApplicationContext
+      val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
+      promise.resolve(pm.isIgnoringBatteryOptimizations(ctx.packageName))
+    } catch (e: Throwable) {
+      promise.reject("BatteryOptimizationCheckError", e)
+    }
+  }
+
+  /** Prompts the system "ignore battery optimizations" dialog for this app. */
+  @ReactMethod
+  fun requestIgnoreBatteryOptimizations(promise: Promise) {
+    try {
+      val ctx = reactApplicationContext
+      val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+        .setData(Uri.parse("package:${ctx.packageName}"))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      ctx.startActivity(intent)
+      promise.resolve(true)
+    } catch (e: Throwable) {
+      promise.reject("RequestIgnoreBatteryOptimizationsError", e)
     }
   }
 }
