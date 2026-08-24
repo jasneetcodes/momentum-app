@@ -17,10 +17,14 @@ import { isKeyguardSecure, requestKeyguardDismiss, startNativeAlarmAudio, stopNa
 import { scheduleAlarm } from '../services/scheduler';
 import * as AlarmKit from 'momentum-alarm-kit';
 import notifee from '@notifee/react-native';
+import { emergencyUnblocksUsedThisMonth } from '../services/emergencyUnblocks';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useAlarmLogStore } from '../stores/alarmLogStore';
+import { useAuthStore } from '../stores/authStore';
 import { useModeSessionStore } from '../stores/modeSessionStore';
 import type { MainStackParamList, RootNavProp } from '../navigation/types';
+
+const DEFAULT_EMERGENCY_LIMIT = 5; // mirrors profiles.emergency_unblocks_limit default
 
 type RouteProps = RouteProp<MainStackParamList, 'AlarmRinging'>;
 
@@ -49,8 +53,15 @@ export default function AlarmRingingScreen() {
   // If a mode session is already active, the user is already in a blocking
   // state. We skip the post-alarm block screen entirely (mode takes priority).
   const activeModeSession = useModeSessionStore((s) => s.activeSession);
+  const profile = useAuthStore((s) => s.profile);
 
   const alarm = useMemo(() => alarms.find((a) => a.id === alarmId), [alarms, alarmId]);
+
+  const emergencyLimit = profile?.emergency_unblocks_limit ?? DEFAULT_EMERGENCY_LIMIT;
+  const [emergencyUsed, setEmergencyUsed] = useState(0);
+  useEffect(() => {
+    emergencyUnblocksUsedThisMonth().then(setEmergencyUsed);
+  }, []);
 
   // If the screen was opened by a notification with no log in memory, fire one
   useEffect(() => {
@@ -181,9 +192,14 @@ export default function AlarmRingingScreen() {
 
   const handleEmergency = () => {
     if (!alarm) return;
+    const remaining = Math.max(0, emergencyLimit - emergencyUsed);
+    if (remaining <= 0) {
+      Alert.alert('No emergency unblocks remaining', 'You have used all of your emergency unblocks for this month.');
+      return;
+    }
     Alert.alert(
       'Emergency unblock?',
-      'You will dismiss this alarm without your tag. The block will still apply.',
+      `This uses 1 of your ${remaining} remaining emergency unblocks this month. You will dismiss this alarm without your tag — the block will still apply.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

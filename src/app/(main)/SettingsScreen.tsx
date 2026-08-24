@@ -1,15 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import React, { useEffect } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Text } from '../../components/Text';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { emergencyUnblocksUsedThisMonth } from '../../services/emergencyUnblocks';
 import { useAuthStore } from '../../stores/authStore';
 import { useNfcStore } from '../../stores/nfcStore';
 import type { SettingsNavProp } from '../../navigation/types';
+
+const DEFAULT_EMERGENCY_LIMIT = 5; // mirrors profiles.emergency_unblocks_limit default
 
 interface RowProps {
   label: string;
@@ -51,6 +54,18 @@ export default function SettingsScreen() {
   }, [fetchTags]);
 
   const tagCountLabel = `${tags.length} registered`;
+
+  // Emergency unblocks are a shared monthly pool spent from either the alarm
+  // ringing screen or an active Lock In session — refresh on focus so this
+  // stays correct after using one from either place.
+  const emergencyLimit = profile?.emergency_unblocks_limit ?? DEFAULT_EMERGENCY_LIMIT;
+  const [emergencyUsed, setEmergencyUsed] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      emergencyUnblocksUsedThisMonth().then(setEmergencyUsed);
+    }, []),
+  );
+  const emergencyRemaining = Math.max(0, emergencyLimit - emergencyUsed);
 
   return (
     <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
@@ -96,7 +111,7 @@ export default function SettingsScreen() {
             <View className="px-5">
               <Row label="Notifications" onPress={() => {}} />
               <Divider />
-              <Row label="Emergency unblocks" value="5 left" />
+              <Row label="Emergency unblocks" value={`${emergencyRemaining} left`} />
               <Divider />
               <Row label="App version" value="1.0.0" />
             </View>

@@ -31,9 +31,10 @@ import {
 import { useModeStore, type Mode } from '../../stores/modeStore';
 import { useModeSessionStore } from '../../stores/modeSessionStore';
 import { useAlarmLogStore } from '../../stores/alarmLogStore';
+import { useAuthStore } from '../../stores/authStore';
 import type { RootNavProp } from '../../navigation/types';
 
-const EMERGENCY_LIMIT = 5; // mirrors profiles.emergency_unblocks_limit default
+const DEFAULT_EMERGENCY_LIMIT = 5; // mirrors profiles.emergency_unblocks_limit default
 
 function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -67,6 +68,8 @@ export default function LockInScreen() {
   const totalMinutesTodayFn = useModeSessionStore((s) => s.totalMinutesToday);
 
   const activeAlarmLog = useAlarmLogStore((s) => s.activeLog);
+  const profile = useAuthStore((s) => s.profile);
+  const emergencyLimit = profile?.emergency_unblocks_limit ?? DEFAULT_EMERGENCY_LIMIT;
 
   const selectedMode: Mode | null = useMemo(
     () => modes.find((m) => m.id === selectedModeId) ?? null,
@@ -265,7 +268,7 @@ export default function LockInScreen() {
 
   const handleEmergency = () => {
     if (!activeSession) return;
-    const remaining = Math.max(0, EMERGENCY_LIMIT - emergencyUsed);
+    const remaining = Math.max(0, emergencyLimit - emergencyUsed);
     if (remaining <= 0) {
       Alert.alert('No emergency unblocks remaining', 'You have used all of your emergency unblocks for this month.');
       return;
@@ -301,7 +304,7 @@ export default function LockInScreen() {
 
   // Active session — darker, locked-down UI
   if (activeSession) {
-    const remainingEmergency = Math.max(0, EMERGENCY_LIMIT - emergencyUsed);
+    const remainingEmergency = Math.max(0, emergencyLimit - emergencyUsed);
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#1A1A1A' }} edges={['top']}>
         <StatusBar barStyle="light-content" />

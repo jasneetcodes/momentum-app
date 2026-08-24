@@ -174,28 +174,6 @@ export async function totalMinutesToday(): Promise<number> {
   return Math.floor(totalMs / 60_000);
 }
 
-/**
- * Counts emergency unblocks used in the current calendar month. Drives the
- * "Emergency unblock — X remaining" copy.
- */
-export async function emergencyUnblocksUsedThisMonth(): Promise<number> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return 0;
-
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const { count } = await supabase
-    .from('mode_sessions')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', auth.user.id)
-    .eq('deactivated_via', 'emergency')
-    .gte('activated_at', startOfMonth.toISOString());
-
-  return count ?? 0;
-}
-
 export async function fetchModes(): Promise<Mode[]> {
   const { data } = await supabase
     .from('modes')

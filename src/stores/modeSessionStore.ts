@@ -3,12 +3,12 @@ import {
   activateModeSession,
   deactivateModeSessionViaEmergency,
   deactivateModeSessionViaNfc,
-  emergencyUnblocksUsedThisMonth,
   findActiveSession,
   totalMinutesToday as totalMinutesTodayRemote,
   type DeactivateError,
   type ModeSession,
 } from '../services/mode';
+import { emergencyUnblocksUsedThisMonth } from '../services/emergencyUnblocks';
 import type { Mode } from './modeStore';
 
 interface ModeSessionState {
