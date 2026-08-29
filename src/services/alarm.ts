@@ -113,3 +113,47 @@ export async function markBlockComplete(logId: string): Promise<void> {
     .update({ block_completed: true })
     .eq('id', logId);
 }
+
+function nextFireForAlarm(alarm: Alarm, now: Date): Date {
+  const [hh, mm] = alarm.time.split(':').map(Number);
+  const fireToday = new Date(now);
+  fireToday.setHours(hh, mm, 0, 0);
+
+  if (alarm.days_of_week.length === 0) {
+    // One-off: today if still ahead, else tomorrow.
+    if (fireToday.getTime() > now.getTime()) return fireToday;
+    const tomorrow = new Date(fireToday);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  }
+
+  // days_of_week uses the same 0=Sunday..6=Saturday convention as Date.getDay().
+  for (let d = 0; d <= 7; d++) {
+    const candidate = new Date(fireToday);
+    candidate.setDate(candidate.getDate() + d);
+    if (!alarm.days_of_week.includes(candidate.getDay())) continue;
+    if (candidate.getTime() > now.getTime()) return candidate;
+  }
+  // Unreachable in practice (the d=7 pass always revisits today's weekday
+  // a week out), but keeps the function total.
+  return fireToday;
+}
+
+/**
+ * Soonest upcoming fire time across all active alarms — display-only, pure
+ * client-side computation over already-loaded alarms (no Supabase call).
+ * Not used for scheduling; the native scheduler (scheduler/android.ts,
+ * scheduler/ios.ts) computes its own occurrences independently.
+ */
+export function getNextAlarmOccurrence(alarms: Alarm[]): { alarm: Alarm; fireAt: Date } | null {
+  const now = new Date();
+  let best: { alarm: Alarm; fireAt: Date } | null = null;
+
+  for (const alarm of alarms) {
+    if (!alarm.is_active) continue;
+    const fireAt = nextFireForAlarm(alarm, now);
+    if (!best || fireAt.getTime() < best.fireAt.getTime()) best = { alarm, fireAt };
+  }
+
+  return best;
+}
