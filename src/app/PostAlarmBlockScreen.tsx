@@ -2,8 +2,9 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Platform, ScrollView, StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card } from '../components/Card';
-import { Text } from '../components/Text';
+import { Display } from '../components/Display';
+import { HazardStripes } from '../components/HazardStripes';
+import { MonoLabel } from '../components/MonoLabel';
 import { SOCIAL_MEDIA_APPS } from '../constants/apps';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { startBlocking, stopBlocking } from '../services/appBlocking';
@@ -38,7 +39,7 @@ export default function PostAlarmBlockScreen() {
   const route = useRoute<RouteProps>();
   const { alarmId } = route.params;
 
-  const { barStyle, accent } = useThemeColors();
+  const { barStyle, bg, ink, muted, faint, accent, surface } = useThemeColors();
   const alarms = useAlarmStore((s) => s.alarms);
   const activeLog = useAlarmLogStore((s) => s.activeLog);
   const completeBlock = useAlarmLogStore((s) => s.completeBlock);
@@ -53,6 +54,10 @@ export default function PostAlarmBlockScreen() {
   const blockEndsAt = activeLog?.block_ends_at
     ? new Date(activeLog.block_ends_at).getTime()
     : null;
+  const blockStartedAt = activeLog?.block_started_at
+    ? new Date(activeLog.block_started_at).getTime()
+    : null;
+  const totalSeconds = alarm ? alarm.block_duration_minutes * 60 : 0;
 
   const computeRemaining = () => {
     if (!blockEndsAt) return 0;
@@ -101,8 +106,8 @@ export default function PostAlarmBlockScreen() {
 
   if (!alarm || !blockEndsAt) {
     return (
-      <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark items-center justify-center">
-        <Text variant="muted">Block info unavailable.</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+        <MonoLabel color={muted} size={13} uppercase={false}>Block info unavailable.</MonoLabel>
       </SafeAreaView>
     );
   }
@@ -111,62 +116,65 @@ export default function PostAlarmBlockScreen() {
     .map((bundleId) => ({ bundleId, name: appNameFromBundleId(bundleId) }))
     .filter((a) => a.name !== a.bundleId || alarm.apps.length <= 8);
 
-  const headerLabel =
-    alarm.block_type === 'blacklist' ? 'Apps blocked' : 'Apps allowed';
+  const elapsedSeconds = totalSeconds - remaining;
+  const pctDone = totalSeconds > 0 ? Math.min(100, Math.max(0, (elapsedSeconds / totalSeconds) * 100)) : 0;
+  const minutesDone = Math.floor(elapsedSeconds / 60);
+  const headerLabel = alarm.block_type === 'blacklist' ? 'Blocked' : 'Allowed';
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar barStyle={barStyle} />
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 24,
-          paddingBottom: 32,
-          justifyContent: 'space-between',
-        }}
-      >
-        <View className="items-center pt-16 pb-10">
-          <Text variant="muted" className="text-sm uppercase tracking-wider mb-4">
-            Time remaining
-          </Text>
-          <Text
-            className="text-ink dark:text-ink-dark font-bold"
-            style={{ fontSize: 80, lineHeight: 88, fontVariant: ['tabular-nums'] }}
-          >
+      <HazardStripes color="#EF4444" background={bg} />
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}>
+        <View style={{ paddingHorizontal: 24, alignItems: 'center', paddingTop: 20 }}>
+          <MonoLabel color={muted} size={13} letterSpacing={13 * 0.28}>Locked · Cannot skip</MonoLabel>
+          <Display size={110} weight="black" color={ink} lineHeight={100} style={{ marginTop: 22 }}>
             {formatCountdown(remaining)}
-          </Text>
-          <Text variant="muted" className="text-base mt-5 text-center">
+          </Display>
+          <View style={{ width: '100%', height: 8, backgroundColor: surface, marginTop: 26 }}>
+            <View style={{ width: `${pctDone}%`, height: 8, backgroundColor: accent }} />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 10 }}>
+            <MonoLabel color={faint} size={12} letterSpacing={12 * 0.14}>{minutesDone} MIN DONE</MonoLabel>
+            <MonoLabel color={faint} size={12} letterSpacing={12 * 0.14}>{alarm.block_duration_minutes} MIN TOTAL</MonoLabel>
+          </View>
+          <Display size={26} weight="black" color={ink} uppercase style={{ textAlign: 'center', lineHeight: 30, marginTop: 34 }}>
             {motivationalLine}
-          </Text>
+          </Display>
         </View>
 
-        <View className="pb-6">
-          <Text variant="label" className="mb-3">{headerLabel}</Text>
-          <Card className="p-0">
-            {blockedApps.length === 0 ? (
-              <View className="px-5 py-4">
-                <Text variant="muted" className="text-sm">No apps configured.</Text>
-              </View>
-            ) : (
-              blockedApps.map((app, i) => (
+        <View>
+          <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ paddingHorizontal: 24, marginBottom: 14 }}>
+            Apps {headerLabel.toLowerCase()} · {blockedApps.length}
+          </MonoLabel>
+          {blockedApps.length === 0 ? (
+            <View style={{ paddingHorizontal: 24, paddingVertical: 16 }}>
+              <MonoLabel color={muted} size={13} uppercase={false}>No apps configured.</MonoLabel>
+            </View>
+          ) : (
+            <View style={{ gap: 2 }}>
+              {blockedApps.slice(0, 4).map((app) => (
                 <View
                   key={app.bundleId}
-                  className="px-5 py-3 flex-row items-center justify-between"
-                  style={{
-                    borderBottomWidth: i < blockedApps.length - 1 ? 1 : 0,
-                    borderBottomColor: accent + '14',
-                  }}
+                  style={{ backgroundColor: surface, paddingHorizontal: 24, paddingVertical: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                 >
-                  <Text className="text-base">{app.name}</Text>
+                  <Display size={18} weight="semibold" color={faint} style={{ textDecorationLine: 'line-through' }}>{app.name}</Display>
+                  <View style={{ width: 20, height: 20, backgroundColor: '#EF4444' }} />
                 </View>
-              ))
-            )}
-          </Card>
-          <Text variant="muted" className="text-xs text-center mt-4">
-            {Platform.OS === 'web'
-              ? 'App blocking is enforced on iOS / Android.'
-              : "You can't skip this. Timer must complete."}
-          </Text>
+              ))}
+              {blockedApps.length > 4 && (
+                <MonoLabel color={faint} size={12} letterSpacing={12 * 0.1} style={{ paddingHorizontal: 24, paddingVertical: 16 }}>
+                  + {blockedApps.length - 4} more
+                </MonoLabel>
+              )}
+            </View>
+          )}
+          <HazardStripes color="#EF4444" background={bg} reverse />
+          {Platform.OS === 'web' && (
+            <MonoLabel color={muted} size={12} uppercase={false} style={{ textAlign: 'center', paddingVertical: 12 }}>
+              App blocking is enforced on iOS / Android.
+            </MonoLabel>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

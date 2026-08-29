@@ -6,7 +6,9 @@
     "scheme": "momentum",
     "ios": {
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -25,7 +27,8 @@
         {
           "color": "#01BAEF"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

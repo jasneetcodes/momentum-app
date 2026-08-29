@@ -2,14 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
+import { Alert, Platform, Pressable, StatusBar, View } from 'react-native';
 import { previewAlarmSound, stopPreviewSound } from '../../services/sound';
 import { ensureFullScreenIntentGranted } from '../../services/permissions';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
+import { AppPicker } from '../../components/AppPicker';
+import { Display } from '../../components/Display';
 import { Input } from '../../components/Input';
-import { Text } from '../../components/Text';
+import { MonoLabel } from '../../components/MonoLabel';
+import { Slab } from '../../components/Slab';
+import { SlabButton } from '../../components/SlabButton';
 import { DEFAULT_BLOCKED_APPS, SOCIAL_MEDIA_APPS } from '../../constants/apps';
 import { ALARM_SOUNDS, DEFAULT_SOUND } from '../../constants/sounds';
 import { useThemeColors } from '../../hooks/useThemeColors';
@@ -21,7 +23,7 @@ const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 // Mon=1 ... Sat=6, Sun=0 (Postgres convention). UI is Mon-first.
 const DAY_VALUES = [1, 2, 3, 4, 5, 6, 0];
 
-const DURATION_PRESETS = [15, 30, 45, 60, 90, 120];
+const DURATION_PRESETS = [15, 30, 45, 60, 90];
 
 type RouteProps = RouteProp<MainStackParamList, 'AlarmSetup'>;
 
@@ -46,12 +48,12 @@ function formatTime(date: Date): string {
   return `${hh}:${mm}:00`;
 }
 
-function formatTimeDisplay(date: Date): string {
+function formatTimeParts(date: Date): { hhmm: string; period: string } {
   const hours = date.getHours();
   const mins = String(date.getMinutes()).padStart(2, '0');
   const period = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
-  return `${displayHours}:${mins} ${period}`;
+  return { hhmm: `${displayHours}:${mins}`, period };
 }
 
 /**
@@ -82,7 +84,7 @@ export default function AlarmSetupScreen() {
   const route = useRoute<RouteProps>();
   const editingId = route.params?.alarmId;
 
-  const { barStyle, ink, accent, muted } = useThemeColors();
+  const { barStyle, bg, ink, muted, faint, border, accent, surface } = useThemeColors();
   const alarms = useAlarmStore((s) => s.alarms);
   const createAlarm = useAlarmStore((s) => s.createAlarm);
   const updateAlarm = useAlarmStore((s) => s.updateAlarm);
@@ -94,11 +96,11 @@ export default function AlarmSetupScreen() {
   );
 
   const platformDefaults = useMemo(() => platformBundleIds(), []);
-  const platformAppList = useMemo(
+  const defaultApps = useMemo(
     () =>
       SOCIAL_MEDIA_APPS.map((a) => ({
+        id: Platform.OS === 'ios' ? a.ios : a.android,
         name: a.name,
-        bundleId: Platform.OS === 'ios' ? a.ios : a.android,
       })),
     [],
   );
@@ -158,14 +160,12 @@ export default function AlarmSetupScreen() {
   const handleBlockTypeChange = (type: 'blacklist' | 'whitelist') => {
     setBlockType(type);
     if (type === 'blacklist') {
-      // Re-add defaults to the block list
       setSelectedApps((prev) => {
         const next = new Set(prev);
         platformDefaults.forEach((id) => next.add(id));
         return next;
       });
     } else {
-      // Whitelist: remove defaults (they're always blocked; can't be allowed)
       setSelectedApps((prev) => {
         const next = new Set(prev);
         platformDefaults.forEach((id) => next.delete(id));
@@ -244,232 +244,151 @@ export default function AlarmSetupScreen() {
     if (selectedDate) setTime(selectedDate);
   };
 
-  const appsHeaderHint =
-    blockType === 'blacklist' ? 'Social apps always blocked' : 'Social apps always blocked';
+  const { hhmm, period } = formatTimeParts(time);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
       <StatusBar barStyle={barStyle} />
 
-      <View className="px-6 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-4 flex-1">
-          <Pressable onPress={() => navigation.goBack()} hitSlop={12} className="p-1">
-            <Ionicons name="close" size={26} color={ink} />
-          </Pressable>
-          <Text variant="heading" className="text-2xl">
-            {editing ? 'Edit alarm' : 'New alarm'}
-          </Text>
-        </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 18 }}>
+        <Display size={34} weight="black" color={ink} uppercase letterSpacing={-34 * 0.03}>
+          {editing ? 'Edit alarm' : 'New alarm'}
+        </Display>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          style={{ width: 48, height: 48, borderWidth: 1.5, borderColor: border, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name="close" size={26} color={ink} />
+        </Pressable>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
-      >
-        <Card className="items-center py-6">
-          {Platform.OS === 'ios' ? (
-            <DateTimePicker
-              value={time}
-              mode="time"
-              display="spinner"
-              onChange={onTimeChange}
-              themeVariant={undefined}
-            />
-          ) : (
-            <>
-              <Pressable onPress={() => setShowPicker(true)}>
-                <Text className="text-6xl font-bold text-ink dark:text-ink-dark">
-                  {formatTimeDisplay(time)}
-                </Text>
-              </Pressable>
-              <Text variant="muted" className="text-sm mt-2">Tap to change</Text>
-              {showPicker && (
-                <DateTimePicker
-                  value={time}
-                  mode="time"
-                  display="default"
-                  onChange={onTimeChange}
-                />
-              )}
-            </>
-          )}
-        </Card>
-
-        <Text variant="label" className="mt-6 mb-3">Repeat</Text>
-        <View className="flex-row gap-2">
-          {DAY_LABELS.map((day, i) => {
-            const value = DAY_VALUES[i];
-            const active = days.includes(value);
-            return (
-              <Pressable
-                key={i}
-                onPress={() => toggleDay(value)}
-                className="flex-1 items-center justify-center py-3 rounded-xl"
-                style={{
-                  backgroundColor: active ? accent : 'transparent',
-                  borderWidth: 1,
-                  borderColor: active ? accent : muted + '40',
-                }}
-              >
-                <Text
-                  className="text-sm font-semibold"
-                  style={{ color: active ? '#fff' : ink }}
-                >
-                  {day}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {days.length === 0 && (
-          <Text variant="muted" className="text-xs mt-2">One-off alarm — fires once.</Text>
-        )}
-
-        <Text variant="label" className="mt-8 mb-3">Label</Text>
-        <Input
-          placeholder="e.g. Morning routine"
-          value={label}
-          onChangeText={setLabel}
-          autoCapitalize="sentences"
-        />
-
-        <Text variant="label" className="mt-8 mb-3">Block type</Text>
-        <View className="flex-row gap-2">
-          {(['blacklist', 'whitelist'] as const).map((type) => {
-            const active = blockType === type;
-            return (
-              <Pressable
-                key={type}
-                onPress={() => handleBlockTypeChange(type)}
-                className="flex-1 py-3 rounded-xl items-center"
-                style={{
-                  backgroundColor: active ? accent : 'transparent',
-                  borderWidth: 1,
-                  borderColor: active ? accent : muted + '40',
-                }}
-              >
-                <Text
-                  className="text-sm font-semibold capitalize"
-                  style={{ color: active ? '#fff' : ink }}
-                >
-                  {type === 'blacklist' ? 'Block these' : 'Allow only these'}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View className="flex-row items-center justify-between mt-8 mb-3">
-          <Text variant="label">Apps</Text>
-          <Text variant="muted" className="text-xs">{appsHeaderHint}</Text>
-        </View>
-        <Card className="p-0">
-          {platformAppList.map((app, i) => {
-            const isLocked = platformDefaults.has(app.bundleId);
-            const isSelected = selectedApps.has(app.bundleId);
-            const lockedSubtext =
-              blockType === 'blacklist' ? 'Default — Always blocked' : 'Default — Always blocked';
-            return (
-              <Pressable
-                key={app.bundleId}
-                onPress={() => toggleApp(app.bundleId)}
-                className="flex-row items-center justify-between px-5 py-4 active:opacity-60"
-                style={{
-                  borderBottomWidth: i < platformAppList.length - 1 ? 1 : 0,
-                  borderBottomColor: muted + '20',
-                }}
-              >
-                <View className="flex-1">
-                  <Text className="text-base">{app.name}</Text>
-                  {isLocked && (
-                    <Text variant="muted" className="text-xs mt-0.5">{lockedSubtext}</Text>
-                  )}
-                </View>
-                <View
-                  className="w-6 h-6 rounded-md items-center justify-center"
-                  style={{
-                    backgroundColor: isSelected ? accent : 'transparent',
-                    borderWidth: 1.5,
-                    borderColor: isSelected ? accent : muted,
-                    opacity: isLocked ? 0.4 : 1,
-                  }}
-                >
-                  {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
-                </View>
-              </Pressable>
-            );
-          })}
-        </Card>
-
-        <Text variant="label" className="mt-8 mb-3">Block duration</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {DURATION_PRESETS.map((mins) => {
-            const active = duration === mins;
-            return (
-              <Pressable
-                key={mins}
-                onPress={() => setDuration(mins)}
-                className="px-4 py-2.5 rounded-xl"
-                style={{
-                  backgroundColor: active ? accent : 'transparent',
-                  borderWidth: 1,
-                  borderColor: active ? accent : muted + '40',
-                }}
-              >
-                <Text
-                  className="text-sm font-semibold"
-                  style={{ color: active ? '#fff' : ink }}
-                >
-                  {mins} min
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <Text variant="label" className="mt-8 mb-3">Sound</Text>
-        <Card className="p-0">
-          {ALARM_SOUNDS.map((s, i) => {
-            const active = sound === s.id;
-            const previewing = previewingId === s.id;
-            return (
-              <Pressable
-                key={s.id}
-                onPress={() => setSound(s.id)}
-                className="flex-row items-center justify-between px-5 py-4 active:opacity-60"
-                style={{
-                  borderBottomWidth: i < ALARM_SOUNDS.length - 1 ? 1 : 0,
-                  borderBottomColor: muted + '20',
-                }}
-              >
-                <Text className="text-base flex-1">{s.name}</Text>
-                <View className="flex-row items-center gap-4">
-                  <Pressable
-                    onPress={() => handlePreview(s.id)}
-                    hitSlop={12}
-                    className="active:opacity-50"
-                  >
-                    <Ionicons
-                      name={previewing ? 'stop-circle' : 'play-circle'}
-                      size={26}
-                      color={previewing ? accent : muted}
-                    />
+      <AppPicker
+        defaultApps={defaultApps}
+        selected={selectedApps}
+        onToggle={toggleApp}
+        lockedNote="Social apps always blocked"
+        header={
+          <>
+            <Slab background={accent} style={{ padding: 20 }}>
+              <MonoLabel color="rgba(14,14,15,.6)" size={12} letterSpacing={12 * 0.22}>Fires at</MonoLabel>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 10 }}>
+                <Display size={52} weight="black" color={bg} lineHeight={46}>{hhmm}</Display>
+                <Display size={22} weight="extrabold" color={bg} letterSpacing={0} style={{ marginLeft: 6 }}>{period}</Display>
+              </View>
+              {Platform.OS === 'ios' ? (
+                <DateTimePicker value={time} mode="time" display="spinner" onChange={onTimeChange} themeVariant={undefined} />
+              ) : (
+                <>
+                  <Pressable onPress={() => setShowPicker(true)} style={{ marginTop: 12 }}>
+                    <MonoLabel color="rgba(14,14,15,.7)" size={12} letterSpacing={12 * 0.14}>Tap to change</MonoLabel>
                   </Pressable>
-                  {active && <Ionicons name="checkmark" size={20} color={accent} />}
-                </View>
-              </Pressable>
-            );
-          })}
-        </Card>
+                  {showPicker && <DateTimePicker value={time} mode="time" display="default" onChange={onTimeChange} />}
+                </>
+              )}
+            </Slab>
 
-        <Button
-          label={editing ? 'Save changes' : 'Create alarm'}
-          fullWidth
-          loading={saving}
-          onPress={handleSave}
-          className="mt-10"
-        />
-      </ScrollView>
+            <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ marginTop: 24, marginBottom: 14 }}>Repeat</MonoLabel>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              {DAY_LABELS.map((day, i) => {
+                const value = DAY_VALUES[i];
+                const active = days.includes(value);
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => toggleDay(value)}
+                    style={{ flex: 1, paddingVertical: 18, alignItems: 'center', backgroundColor: active ? accent : 'transparent', borderWidth: active ? 0 : 1.5, borderColor: border }}
+                  >
+                    <MonoLabel color={active ? bg : muted} size={15} weight="bold" letterSpacing={0}>{day}</MonoLabel>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {days.length === 0 && (
+              <MonoLabel color={muted} size={11} uppercase={false} style={{ marginTop: 10 }}>One-off alarm — fires once.</MonoLabel>
+            )}
+
+            <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ marginTop: 24, marginBottom: 14 }}>Label</MonoLabel>
+            <Input
+              placeholder="e.g. Morning routine"
+              value={label}
+              onChangeText={setLabel}
+              autoCapitalize="sentences"
+            />
+
+            <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ marginTop: 24, marginBottom: 14 }}>Block type</MonoLabel>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              {(['blacklist', 'whitelist'] as const).map((type) => {
+                const active = blockType === type;
+                return (
+                  <Pressable
+                    key={type}
+                    onPress={() => handleBlockTypeChange(type)}
+                    style={{ flex: 1, paddingVertical: 14, alignItems: 'center', backgroundColor: active ? accent : 'transparent', borderWidth: active ? 0 : 1.5, borderColor: border }}
+                  >
+                    <MonoLabel color={active ? bg : ink} size={13}>
+                      {type === 'blacklist' ? 'Block these' : 'Allow only these'}
+                    </MonoLabel>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        }
+        footer={
+          <>
+            <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ marginTop: 24, marginBottom: 14 }}>Lock duration</MonoLabel>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {DURATION_PRESETS.map((mins) => {
+                const active = duration === mins;
+                return (
+                  <Pressable
+                    key={mins}
+                    onPress={() => setDuration(mins)}
+                    style={{ paddingHorizontal: 20, paddingVertical: 16.5, backgroundColor: active ? accent : 'transparent', borderWidth: active ? 0 : 1.5, borderColor: border }}
+                  >
+                    <MonoLabel color={active ? bg : muted} size={15} weight="bold" letterSpacing={0}>
+                      {active ? `${mins} MIN` : mins}
+                    </MonoLabel>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ marginTop: 24, marginBottom: 14 }}>Sound</MonoLabel>
+            <View style={{ gap: 2 }}>
+              {ALARM_SOUNDS.map((s) => {
+                const active = sound === s.id;
+                const previewing = previewingId === s.id;
+                return (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => setSound(s.id)}
+                    style={{ backgroundColor: surface, paddingHorizontal: 20, paddingVertical: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <Display size={18} weight="semibold" color={ink} style={{ flex: 1 }}>{s.name}</Display>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                      <Pressable onPress={() => handlePreview(s.id)} hitSlop={12}>
+                        <Ionicons name={previewing ? 'stop-circle' : 'play-circle'} size={26} color={previewing ? accent : faint} />
+                      </Pressable>
+                      {active && <Ionicons name="checkmark" size={20} color={accent} />}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={{ marginTop: 24 }}>
+              <SlabButton
+                label={editing ? 'Save changes' : 'Create alarm'}
+                fullWidth
+                loading={saving}
+                onPress={handleSave}
+              />
+            </View>
+          </>
+        }
+      />
     </SafeAreaView>
   );
 }

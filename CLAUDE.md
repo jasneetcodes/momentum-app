@@ -176,36 +176,64 @@ Signup form fields (in order): First name | Last name (side-by-side row), Email,
 
 ## Brand & Visual Design
 
-Colour
+**As of the 2026-08-29 redesign, this is the app's actual visual system** — imported
+from a Claude Design canvas (`Momentum.dc.html`) and implemented across every screen.
+Replaces the earlier "use accent sparingly" / rounded-corner guidance below entirely.
 
-Primary accent: #01BAEF (cyan-blue)
+Fonts
 
-Background (dark mode): near-black, ~#0E0E0F
-Surface cards (dark mode): ~#1A1A1B
-Primary text (dark mode): #FFFFFF pure white
-Secondary text (dark mode): ~#888 muted grey
+Two typefaces, no others: **Archivo** (weights 400–900, incl. 900 Black) drives every
+display number and headline; **JetBrains Mono** (400/500/700) drives every uppercase
+label, caption, and stat-tag. Loaded via `@expo-google-fonts/archivo` +
+`@expo-google-fonts/jetbrains-mono`, gated behind `useFonts()` in `App.js` — nothing
+renders until both are ready, so the system font never flashes on first paint.
+`src/components/Display.tsx` (Archivo, one-off sizes from 26px up to 132px) and
+`src/components/MonoLabel.tsx` (JetBrains Mono, uppercase, wide tracking) are the two
+text primitives every redesigned screen builds from — reach for these before adding a
+new inline style.
 
-Background (light mode): off-white with cream shift, #F9F7F5
-Surface cards (light mode): #FFFFFF pure white
-Primary text (light mode): #1A1A1A Deep charcoal
-Secondary text (light mode): ~#717171 Mid-grey
+Colour tokens (`src/constants/colors.ts`)
 
-The accent colour (#01BAEF) is used for: primary buttons, active toggles, streak dots,
-the NFC tap pulse animation, and selected tab indicators. Use it sparingly — it should
-always draw the eye to the one thing worth tapping.
+| Role | Dark | Light |
+|---|---|---|
+| bg | `#0E0E0F` | `#F9F7F5` |
+| surface (slab fill) | `#1A1A1B` | `#FFFFFF` |
+| ink | `#FFFFFF` | `#1A1A1A` |
+| muted | `#888888` | `#717171` |
+| accent | `#01BAEF` | `#01BAEF` |
+| border | `#2A2A2C` | `#E2DFDA` |
+| faint (disabled/struck-through) | `#5A5A5C` | `#9A9A96` |
+| hazard (blocked-state red) | `#EF4444` | `#EF4444` |
+
+Unlike the old system, **accent is used heavily and full-bleed** — the "next alarm"
+card, primary CTAs, and mode tiles are solid accent-filled blocks, not small highlight
+touches. This is a deliberate reversal of the previous "use it sparingly" rule.
+
+Structural components
+
+`src/components/Slab.tsx` and `SlabButton.tsx` replace `Card`/`Button` for every
+redesigned screen — **zero border radius** is the defining shape rule (no rounded-2xl
+anywhere in the new system). `Card`/`Button` still exist and are still correct for the
+few things this pass didn't touch (native takeover screens, onboarding, Create Mode,
+auth screens beyond Welcome).
+
+Animation vocabulary
+
+- **Pulsing ring** (`src/components/PulsingRing.tsx`) — the "tap your tag" motif on
+  Alarm Ringing, Add Tag, and Lock In's idle state.
+- **Blink** (`src/hooks/useBlink.ts`) — hard-cut opacity toggle (not a fade) for status
+  indicators like "ALARM ACTIVE" / "LOCKED IN · {mode}".
+- **Marching hazard stripes** (`src/components/HazardStripes.tsx`) — the diagonal
+  marquee bar on Alarm Ringing and Post-Alarm Block, built from plain skewed `View`s
+  (no SVG dependency) since RN has no equivalent to animated CSS background-position.
 
 Aesthetic principles
 
-High-contrast, minimal. Every screen should feel intentional and uncluttered.
-Large typography for key numbers (time, streak count, timer). Let the numbers breathe.
-The physical NFC tag product photo is a hero UI element on the Lock In screen.
-It must always render crisply — use a high-res asset, never stretch or distort it.
-When a Lock In session is active, the UI shifts into a visibly darker, more locked-down
-state. This visual shift is intentional — it communicates the mode change without words.
-Empty states must feel considered, not lazy. Use a single short line of copy that sells
-the product concept (e.g. "Set your first alarm. No snooze. No excuses.").
-No decorative gradients, no glow effects, no heavy shadows. Flat surfaces only.
-Spacing is generous. Never cram elements — whitespace communicates premium quality.
+High-contrast, expressive, unapologetically bold — not the earlier "minimal, use
+sparingly" restraint. Numbers are enormous (streak count renders at 132px). Zero
+border radius everywhere; flat fill, no shadows, no gradients (that principle carries
+over unchanged). Hazard stripes and struck-through app names make a blocked state
+*look* blocked, not just say so. Spacing stays generous — bold does not mean cramped.
 
 
 Navigation Structure

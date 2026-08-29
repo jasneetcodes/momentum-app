@@ -3,9 +3,10 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { Text } from '../../components/Text';
+import { Display } from '../../components/Display';
+import { MonoLabel } from '../../components/MonoLabel';
+import { Slab } from '../../components/Slab';
+import { SlabButton } from '../../components/SlabButton';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { emergencyUnblocksUsedThisMonth } from '../../services/emergencyUnblocks';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,29 +22,25 @@ interface RowProps {
 }
 
 function Row({ label, value, onPress }: RowProps) {
-  const { muted } = useThemeColors();
+  const { ink, muted } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      className="flex-row items-center justify-between py-4 active:opacity-60"
+      style={{ paddingHorizontal: 24, paddingVertical: 21, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
     >
-      <Text className="text-base">{label}</Text>
-      <View className="flex-row items-center gap-2">
-        {value ? <Text variant="muted" className="text-sm">{value}</Text> : null}
-        {onPress ? <Ionicons name="chevron-forward" size={18} color={muted} /> : null}
+      <Display size={19} weight="semibold" color={ink}>{label}</Display>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        {value ? <MonoLabel color={muted} size={13} letterSpacing={13 * 0.1}>{value}</MonoLabel> : null}
+        {onPress ? <Ionicons name="chevron-forward" size={20} color={muted} /> : null}
       </View>
     </Pressable>
   );
 }
 
-function Divider() {
-  return <View className="h-px bg-muted/15 dark:bg-muted-dark/15" />;
-}
-
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavProp>();
-  const { barStyle, ink } = useThemeColors();
+  const { barStyle, bg, ink, muted, border, accent, surface } = useThemeColors();
   const profile = useAuthStore((s) => s.profile);
   const logout = useAuthStore((s) => s.logout);
   const tags = useNfcStore((s) => s.tags);
@@ -53,11 +50,8 @@ export default function SettingsScreen() {
     fetchTags();
   }, [fetchTags]);
 
-  const tagCountLabel = `${tags.length} registered`;
+  const tagCountLabel = `${tags.length} REGISTERED`;
 
-  // Emergency unblocks are a shared monthly pool spent from either the alarm
-  // ringing screen or an active Lock In session — refresh on focus so this
-  // stays correct after using one from either place.
   const emergencyLimit = profile?.emergency_unblocks_limit ?? DEFAULT_EMERGENCY_LIMIT;
   const [emergencyUsed, setEmergencyUsed] = useState(0);
   useFocusEffect(
@@ -68,57 +62,64 @@ export default function SettingsScreen() {
   const emergencyRemaining = Math.max(0, emergencyLimit - emergencyUsed);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
       <StatusBar barStyle={barStyle} />
-      <View className="px-6 pt-4 pb-3 flex-row items-center gap-4">
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} className="p-1">
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 18 }}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          style={{ width: 48, height: 48, borderWidth: 1.5, borderColor: border, alignItems: 'center', justifyContent: 'center' }}
+        >
           <Ionicons name="chevron-back" size={26} color={ink} />
         </Pressable>
-        <Text variant="heading" className="text-2xl">Settings</Text>
+        <Display size={34} weight="black" color={ink} uppercase letterSpacing={-34 * 0.03}>Settings</Display>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        <View className="px-6 pt-4">
-          <Card>
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 pr-3">
-                <Text className="text-base font-semibold" numberOfLines={1}>
-                  {profile?.name ?? profile?.email ?? 'Account'}
-                </Text>
-                <Text variant="muted" className="text-xs mt-1">{profile?.email ?? ''}</Text>
-              </View>
-              <View className="px-3 py-1 rounded-full bg-accent/10">
-                <Text className="text-xs font-semibold text-accent">CERTIFIED</Text>
-              </View>
+        <View style={{ paddingHorizontal: 24 }}>
+          <Slab style={{ padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: 16 }}>
+              <Display size={22} weight="extrabold" color={ink} letterSpacing={-22 * 0.015} numberOfLines={1}>
+                {profile?.name ?? profile?.email ?? 'Account'}
+              </Display>
+              <MonoLabel color={muted} size={13} letterSpacing={13 * 0.06} uppercase={false} style={{ marginTop: 6 }}>
+                {profile?.email ?? ''}
+              </MonoLabel>
             </View>
-          </Card>
+            <View style={{ backgroundColor: accent, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <MonoLabel color={bg} size={12} letterSpacing={12 * 0.16}>Certified</MonoLabel>
+            </View>
+          </Slab>
 
-          <Text variant="label" className="mt-8 mb-2">NFC tags</Text>
-          <Card className="p-0">
-            <View className="px-5">
-              <Row
-                label="Manage tags"
-                value={tagCountLabel}
-                onPress={() => navigation.navigate('ManageTags')}
-              />
-              <Divider />
+          <MonoLabel color={accent} size={12} letterSpacing={12 * 0.22} style={{ marginTop: 28, marginBottom: 14 }}>NFC tags</MonoLabel>
+          <View style={{ gap: 2 }}>
+            <View style={{ backgroundColor: surface }}>
+              <Row label="Manage tags" value={tagCountLabel} onPress={() => navigation.navigate('ManageTags')} />
+            </View>
+            <View style={{ backgroundColor: surface }}>
               <Row label="Add new tag" onPress={() => navigation.navigate('NFCRegister')} />
             </View>
-          </Card>
+          </View>
 
-          <Text variant="label" className="mt-8 mb-2">Account</Text>
-          <Card className="p-0">
-            <View className="px-5">
-              <Row label="Notifications" onPress={() => {}} />
-              <Divider />
-              <Row label="Emergency unblocks" value={`${emergencyRemaining} left`} />
-              <Divider />
-              <Row label="App version" value="1.0.0" />
+          <MonoLabel color={accent} size={12} letterSpacing={12 * 0.22} style={{ marginTop: 26, marginBottom: 14 }}>Account</MonoLabel>
+          <View style={{ gap: 2 }}>
+            <View style={{ backgroundColor: surface }}>
+              <Row label="Notifications" />
             </View>
-          </Card>
+            <View style={{ backgroundColor: surface, paddingHorizontal: 24, paddingVertical: 21, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Display size={19} weight="semibold" color={ink}>Emergency unblocks</Display>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                <Display size={22} weight="black" color={accent}>{emergencyRemaining}</Display>
+                <MonoLabel color={muted} size={12} letterSpacing={12 * 0.14}>left</MonoLabel>
+              </View>
+            </View>
+            <View style={{ backgroundColor: surface }}>
+              <Row label="Version" value="1.0.0" />
+            </View>
+          </View>
 
-          <View className="mt-10">
-            <Button label="Log out" variant="secondary" fullWidth onPress={logout} />
+          <View style={{ marginTop: 30 }}>
+            <SlabButton label="Log out" variant="secondary" fullWidth onPress={logout} />
           </View>
         </View>
       </ScrollView>

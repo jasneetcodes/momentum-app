@@ -5,6 +5,7 @@ import AlarmsScreen from '../app/(main)/AlarmsScreen';
 import AnalyticsScreen from '../app/(main)/AnalyticsScreen';
 import HomeScreen from '../app/(main)/HomeScreen';
 import LockInScreen from '../app/(main)/LockInScreen';
+import { FONTS } from '../constants/fonts';
 import { useThemeColors } from '../hooks/useThemeColors';
 import type { MainTabsParamList } from './types';
 
@@ -30,15 +31,17 @@ export default function MainTabs() {
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
           backgroundColor: colors.bg,
-          borderTopColor: colors.isDark ? '#1A1A1B' : '#EAEAEA',
-          borderTopWidth: 0.5,
-          height: 84,
-          paddingTop: 8,
-          paddingBottom: 24,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          height: 92,
+          paddingTop: 10,
+          paddingBottom: 26,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontFamily: FONTS.monoBold,
+          fontSize: 10,
+          letterSpacing: 10 * 0.14,
+          textTransform: 'uppercase',
         },
         tabBarIcon: ({ focused, color, size }) => {
           const icons = ICON_MAP[route.name as TabName];
@@ -59,7 +62,7 @@ export default function MainTabs() {
         component={LockInScreen}
         options={{ tabBarLabel: 'Lock In' }}
       />
-      <Tab.Screen name="Analytics" component={AnalyticsScreen} />
+      <Tab.Screen name="Analytics" component={AnalyticsScreen} options={{ tabBarLabel: 'Stats' }} />
     </Tab.Navigator>
   );
 }

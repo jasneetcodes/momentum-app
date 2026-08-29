@@ -3,10 +3,11 @@ import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { Text } from '../../components/Text';
+import { Display } from '../../components/Display';
+import { MonoLabel } from '../../components/MonoLabel';
+import { SlabButton } from '../../components/SlabButton';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { useModeSessionStore } from '../../stores/modeSessionStore';
 import { useNfcStore, type NfcTag } from '../../stores/nfcStore';
 import type { ManageTagsNavProp } from '../../navigation/types';
 
@@ -16,11 +17,16 @@ function formatUid(uid: string) {
 
 export default function ManageTagsScreen() {
   const navigation = useNavigation<ManageTagsNavProp>();
-  const { barStyle, ink, muted, accent } = useThemeColors();
+  const { barStyle, bg, ink, muted, faint, border, accent, surface } = useThemeColors();
   const tags = useNfcStore((s) => s.tags);
   const loading = useNfcStore((s) => s.loading);
   const fetchTags = useNfcStore((s) => s.fetchTags);
   const deleteTag = useNfcStore((s) => s.deleteTag);
+  // A tag in use can't be deleted — the real rule (deleteTag() already
+  // enforces this server-side via 'active_session'); surfaced here too so
+  // it's visible before the user even tries, matching the design's "A tag
+  // in use cannot be deleted" footnote.
+  const activeSession = useModeSessionStore((s) => s.activeSession);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,72 +61,91 @@ export default function ManageTagsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
       <StatusBar barStyle={barStyle} />
 
-      <View className="px-6 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-4 flex-1">
-          <Pressable onPress={() => navigation.goBack()} hitSlop={12} className="p-1">
+      <View style={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+            style={{ width: 48, height: 48, borderWidth: 1.5, borderColor: border, alignItems: 'center', justifyContent: 'center' }}
+          >
             <Ionicons name="chevron-back" size={26} color={ink} />
           </Pressable>
-          <Text variant="heading" className="text-2xl">NFC tags</Text>
+          <Display size={34} weight="black" color={ink} uppercase letterSpacing={-34 * 0.03}>Tags</Display>
         </View>
         <Pressable
           onPress={() => navigation.navigate('NFCRegister')}
           hitSlop={12}
-          className="p-1"
+          style={{ width: 52, height: 52, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name="add" size={28} color={accent} />
+          <Ionicons name="add" size={32} color={bg} />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <View className="px-6 pt-4">
+        <View style={{ paddingHorizontal: 24 }}>
+          <MonoLabel color={accent} size={12} letterSpacing={12 * 0.22} style={{ marginBottom: 14 }}>
+            {tags.length} registered
+          </MonoLabel>
+
           {tags.length === 0 && !loading ? (
-            <View className="items-center justify-center py-20">
-              <View
-                className="w-16 h-16 rounded-full items-center justify-center mb-6"
-                style={{ backgroundColor: `${accent}1A` }}
-              >
-                <Ionicons name="radio-outline" size={32} color={accent} />
-              </View>
-              <Text variant="heading" className="text-center mb-2">No tags registered</Text>
-              <Text variant="muted" className="text-center text-base px-4 mb-8">
+            <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+              <Ionicons name="radio-outline" size={40} color={accent} style={{ marginBottom: 16 }} />
+              <Display size={20} weight="bold" color={ink} style={{ textAlign: 'center' }}>No tags registered</Display>
+              <MonoLabel color={muted} size={12} uppercase={false} style={{ textAlign: 'center', marginTop: 10, marginBottom: 24 }}>
                 Register your Momentum tag to start dismissing alarms and locking in.
-              </Text>
-              <Button
-                label="Add your first tag"
-                onPress={() => navigation.navigate('NFCRegister')}
-              />
+              </MonoLabel>
+              <SlabButton label="Add your first tag" onPress={() => navigation.navigate('NFCRegister')} />
             </View>
           ) : (
-            <View className="gap-3">
-              {tags.map((tag) => (
-                <Card key={tag.id}>
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1 pr-3">
-                      <Text className="text-base font-semibold" numberOfLines={1}>
+            <View style={{ gap: 2 }}>
+              {tags.map((tag) => {
+                const disabled = deletingId === tag.id || !!activeSession;
+                return (
+                  <View
+                    key={tag.id}
+                    style={{ backgroundColor: surface, padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderLeftWidth: 5, borderLeftColor: accent }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Display size={24} weight="extrabold" color={ink} letterSpacing={-24 * 0.015} numberOfLines={1}>
                         {tag.label ?? 'Untitled tag'}
-                      </Text>
-                      <Text variant="muted" className="text-xs mt-1" numberOfLines={1}>
+                      </Display>
+                      <MonoLabel color={muted} size={13} letterSpacing={13 * 0.1} uppercase={false} style={{ marginTop: 8 }}>
                         {formatUid(tag.uid)}
-                      </Text>
+                      </MonoLabel>
+                      {activeSession && (
+                        <MonoLabel color={accent} size={12} letterSpacing={12 * 0.14} style={{ marginTop: 10 }}>
+                          Session running — locked
+                        </MonoLabel>
+                      )}
                     </View>
                     <Pressable
                       onPress={() => handleDelete(tag)}
-                      disabled={deletingId === tag.id}
-                      hitSlop={10}
-                      className="p-2"
+                      disabled={disabled}
+                      style={{ width: 48, height: 48, borderWidth: 1.5, borderColor: disabled ? border : '#3A2A2C', alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.4 : 1 }}
                     >
-                      <Ionicons
-                        name="trash-outline"
-                        size={20}
-                        color={deletingId === tag.id ? muted : '#EF4444'}
-                      />
+                      <Ionicons name="trash-outline" size={22} color={disabled ? faint : '#EF4444'} />
                     </Pressable>
                   </View>
-                </Card>
-              ))}
+                );
+              })}
+              <Pressable
+                onPress={() => navigation.navigate('NFCRegister')}
+                style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: border, padding: 22, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 16 }}
+              >
+                <View style={{ width: 44, height: 44, backgroundColor: accent + '24', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="add" size={26} color={accent} />
+                </View>
+                <View>
+                  <Display size={19} weight="extrabold" color={ink}>Add a tag</Display>
+                  <MonoLabel color={faint} size={12} letterSpacing={12 * 0.1} style={{ marginTop: 4 }}>Scan a new tag</MonoLabel>
+                </View>
+              </Pressable>
+              <MonoLabel color={faint} size={12} letterSpacing={12 * 0.08} uppercase={false} style={{ lineHeight: 20, marginTop: 22 }}>
+                A tag in use cannot be deleted. End the session first.
+              </MonoLabel>
             </View>
           )}
         </View>

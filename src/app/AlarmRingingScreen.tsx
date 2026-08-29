@@ -1,16 +1,14 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, BackHandler, Pressable, StatusBar, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text } from '../components/Text';
+import { Display } from '../components/Display';
+import { HazardStripes } from '../components/HazardStripes';
+import { MonoLabel } from '../components/MonoLabel';
+import { PulsingRing } from '../components/PulsingRing';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { useBlink } from '../hooks/useBlink';
+import Animated from 'react-native-reanimated';
 import { cancelRead, initNfc, readTagUid } from '../services/nfc';
 import { playAlarmSound, stopAlarmSound } from '../services/sound';
 import { isKeyguardSecure, requestKeyguardDismiss, startNativeAlarmAudio, stopNativeAlarmAudio } from '../services/alarmAudio';
@@ -32,10 +30,7 @@ function formatTimeDisplay(time: string): { hhmm: string; period: string } {
   const [hh, mm] = time.split(':').map(Number);
   const period = hh >= 12 ? 'PM' : 'AM';
   const displayHours = hh % 12 || 12;
-  return {
-    hhmm: `${displayHours}:${String(mm).padStart(2, '0')}`,
-    period,
-  };
+  return { hhmm: `${displayHours}:${String(mm).padStart(2, '0')}`, period };
 }
 
 export default function AlarmRingingScreen() {
@@ -43,7 +38,7 @@ export default function AlarmRingingScreen() {
   const route = useRoute<RouteProps>();
   const { alarmId } = route.params;
 
-  const { accent } = useThemeColors();
+  const { bg, ink, muted, accent } = useThemeColors();
   const alarms = useAlarmStore((s) => s.alarms);
   const fetchAlarms = useAlarmStore((s) => s.fetchAlarms);
   const activeLog = useAlarmLogStore((s) => s.activeLog);
@@ -86,26 +81,7 @@ export default function AlarmRingingScreen() {
     });
   }, []);
 
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
-
-  useEffect(() => {
-    scale.value = withRepeat(
-      withTiming(1.4, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-    opacity.value = withRepeat(
-      withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-  }, [opacity, scale]);
-
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
+  const blinkStyle = useBlink();
 
   const startScan = useCallback(async () => {
     if (!alarm || cancelledRef.current) return;
@@ -231,8 +207,8 @@ export default function AlarmRingingScreen() {
 
   if (!alarm) {
     return (
-      <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark items-center justify-center">
-        <Text variant="muted">Alarm not found.</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+        <MonoLabel color={muted} size={13} uppercase={false}>Alarm not found.</MonoLabel>
       </SafeAreaView>
     );
   }
@@ -240,54 +216,40 @@ export default function AlarmRingingScreen() {
   const { hhmm, period } = formatTimeDisplay(alarm.time);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar hidden />
-      <View className="flex-1 px-6 items-center justify-between pt-12 pb-4">
-        <View className="items-center">
-          <View className="flex-row items-baseline">
-            <Text className="text-ink dark:text-ink-dark font-bold" style={{ fontSize: 96, lineHeight: 108 }}>
-              {hhmm}
-            </Text>
-            <Text variant="muted" className="text-2xl ml-2">{period}</Text>
-          </View>
-          {alarm.label && (
-            <Text variant="muted" className="text-base mt-3">{alarm.label}</Text>
+      <HazardStripes color={accent} background={bg} />
+      <View style={{ flex: 1, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'space-between', paddingTop: 36, paddingBottom: 24 }}>
+        <View style={{ alignItems: 'center' }}>
+          <Animated.View style={blinkStyle}>
+            <MonoLabel color={accent} size={13} letterSpacing={13 * 0.3}>Alarm active</MonoLabel>
+          </Animated.View>
+          <Display size={128} weight="black" color={ink} lineHeight={108} style={{ marginTop: 26 }}>{hhmm}</Display>
+          <MonoLabel color={muted} size={22} weight="bold" letterSpacing={22 * 0.18} style={{ marginTop: 14 }}>
+            {period}{alarm.label ? ` · ${alarm.label.toUpperCase()}` : ''}
+          </MonoLabel>
+        </View>
+
+        <View style={{ alignItems: 'center' }}>
+          <Pressable onPress={() => requestKeyguardDismiss()}>
+            <PulsingRing size={200} color={accent} rings={2}>
+              <View style={{ width: 112, height: 112, borderRadius: 56, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: bg }} />
+              </View>
+            </PulsingRing>
+          </Pressable>
+          <Display size={34} weight="black" color={ink} uppercase style={{ textAlign: 'center', lineHeight: 36, marginTop: 34 }}>
+            Tap your tag{'\n'}to kill it
+          </Display>
+          {scanError && (
+            <MonoLabel color="#EF4444" size={13} uppercase={false} style={{ textAlign: 'center', marginTop: 16 }}>{scanError}</MonoLabel>
           )}
         </View>
 
-        <Pressable className="items-center" onPress={() => requestKeyguardDismiss()}>
-          <View className="w-40 h-40 items-center justify-center mb-8">
-            <Animated.View
-              style={[
-                {
-                  position: 'absolute',
-                  width: 160,
-                  height: 160,
-                  borderRadius: 80,
-                  borderWidth: 2,
-                  borderColor: accent,
-                },
-                ringStyle,
-              ]}
-            />
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center"
-              style={{ backgroundColor: accent + '1A' }}
-            >
-              <View
-                className="w-12 h-12 rounded-full"
-                style={{ backgroundColor: accent }}
-              />
-            </View>
-          </View>
-          <Text variant="heading" className="text-xl text-center">Tap your Momentum tag</Text>
-          {scanError && (
-            <Text className="text-sm text-red-500 mt-3 text-center">{scanError}</Text>
-          )}
-        </Pressable>
-
         <Pressable onPress={handleEmergency} hitSlop={20}>
-          <Text variant="muted" className="text-[10px] opacity-50">Emergency unblock</Text>
+          <MonoLabel color={muted} size={13} letterSpacing={13 * 0.16} style={{ borderBottomWidth: 1, borderBottomColor: muted, paddingBottom: 4 }}>
+            Emergency unblock · {Math.max(0, emergencyLimit - emergencyUsed)} left
+          </MonoLabel>
         </Pressable>
       </View>
     </SafeAreaView>

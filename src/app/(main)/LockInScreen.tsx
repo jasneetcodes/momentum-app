@@ -1,26 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  View,
-} from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import { Alert, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../../components/Button';
-import { Text } from '../../components/Text';
+import { Display } from '../../components/Display';
+import { MonoLabel } from '../../components/MonoLabel';
+import { Slab } from '../../components/Slab';
+import { SlabButton } from '../../components/SlabButton';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { useBlink } from '../../hooks/useBlink';
 import { cancelRead, initNfc, readTagUid } from '../../services/nfc';
 import {
   isPermissionGranted,
@@ -36,9 +25,9 @@ import type { RootNavProp } from '../../navigation/types';
 
 const DEFAULT_EMERGENCY_LIMIT = 5; // mirrors profiles.emergency_unblocks_limit default
 
-function formatElapsed(ms: number): string {
+function formatHms(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
-  const hh = String(Math.floor(total / 3600)).padStart(2, '0');
+  const hh = Math.floor(total / 3600);
   const mm = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
   const ss = String(total % 60).padStart(2, '0');
   return `${hh}:${mm}:${ss}`;
@@ -50,9 +39,13 @@ function formatTodayTotal(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
+function formatClock(d: Date): string {
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 export default function LockInScreen() {
   const navigation = useNavigation<RootNavProp>();
-  const { isDark, barStyle, ink, accent, muted } = useThemeColors();
+  const { barStyle, bg, ink, accent, muted, faint, border, surface } = useThemeColors();
 
   const modes = useModeStore((s) => s.modes);
   const selectedModeId = useModeStore((s) => s.selectedModeId);
@@ -76,14 +69,15 @@ export default function LockInScreen() {
     [modes, selectedModeId],
   );
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [totalToday, setTotalToday] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [emergencyUsed, setEmergencyUsed] = useState(0);
   const [scanError, setScanError] = useState<string | null>(null);
   const [armed, setArmed] = useState(false);
+  const [bestToday, setBestToday] = useState(0);
   const cancelledRef = useRef(false);
   const armTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blinkStyle = useBlink();
 
   const ARM_TIMEOUT_MS = 20000;
 
@@ -96,7 +90,7 @@ export default function LockInScreen() {
   // Refresh totals whenever the tab regains focus (covers post-session updates)
   useFocusEffect(
     useCallback(() => {
-      totalMinutesTodayFn().then(setTotalToday);
+      totalMinutesTodayFn().then((m) => { setTotalToday(m); setBestToday((prev) => Math.max(prev, m)); });
       emergencyUsedFn().then(setEmergencyUsed);
     }, [totalMinutesTodayFn, emergencyUsedFn]),
   );
@@ -113,34 +107,6 @@ export default function LockInScreen() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [activeSession]);
-
-  // Pulsing ring animation — only while armed (i.e. NFC is actively listening).
-  // Pause animation otherwise so the ring carries information (you tapped, we're
-  // listening) rather than being decorative.
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
-  useEffect(() => {
-    if (!activeSession || !armed) {
-      scale.value = 1;
-      opacity.value = 1;
-      return;
-    }
-    scale.value = withRepeat(
-      withTiming(1.25, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-    opacity.value = withRepeat(
-      withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-  }, [activeSession, armed, opacity, scale]);
-
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
 
   // NFC scan loop — only runs while user has tapped the ring to arm scanning.
   // Bounded by ARM_TIMEOUT_MS so we don't hold the NFC stack open indefinitely;
@@ -300,215 +266,158 @@ export default function LockInScreen() {
     );
   };
 
-  // ------------------ Render ------------------
+  // ------------------ Render: session running ------------------
 
-  // Active session — darker, locked-down UI
   if (activeSession) {
-    const remainingEmergency = Math.max(0, emergencyLimit - emergencyUsed);
+    const tappedInAt = new Date(activeSession.activated_at);
+    const blockedApps = selectedMode?.apps.slice(0, 4) ?? [];
+
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#1A1A1A' }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
         <StatusBar barStyle="light-content" />
-        <View className="flex-1 px-6 pt-4">
-          <View className="items-center">
-            <Text className="text-sm" style={{ color: '#888' }}>
-              Locked in today — {formatTodayTotal(totalToday)}
-            </Text>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}>
+          <View style={{ paddingHorizontal: 24, alignItems: 'center', paddingTop: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Animated.View style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: accent }, blinkStyle]} />
+              <MonoLabel color={accent} size={13} letterSpacing={13 * 0.3}>
+                Locked in · {(selectedMode?.label ?? 'Session').toUpperCase()}
+              </MonoLabel>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 26 }}>
+              <Display size={80} weight="black" color={ink} lineHeight={72}>{formatHms(elapsed).slice(0, -3)}</Display>
+              <Display size={38} weight="black" color={accent}>{formatHms(elapsed).slice(-3)}</Display>
+            </View>
+            <MonoLabel color={muted} size={13} letterSpacing={13 * 0.18} style={{ marginTop: 12 }}>Elapsed · running up</MonoLabel>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', borderTopWidth: 1, borderTopColor: border, paddingTop: 14, marginTop: 24 }}>
+              <MonoLabel color={faint} size={12} letterSpacing={12 * 0.14}>Tapped in {formatClock(tappedInAt)}</MonoLabel>
+              <MonoLabel color={faint} size={12} letterSpacing={12 * 0.14}>Best today {formatTodayTotal(bestToday)}</MonoLabel>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 2, width: '100%', marginTop: 28 }}>
+              <Slab style={{ flex: 1, padding: 18 }}>
+                <MonoLabel color={muted} size={10} letterSpacing={10 * 0.16}>Today</MonoLabel>
+                <Display size={26} weight="black" color={ink} style={{ marginTop: 10 }}>{formatTodayTotal(totalToday)}</Display>
+              </Slab>
+              <Slab style={{ flex: 1, padding: 18 }}>
+                <MonoLabel color={muted} size={10} letterSpacing={10 * 0.16}>Mode</MonoLabel>
+                <Display size={26} weight="black" color={ink} style={{ marginTop: 10 }}>{selectedMode?.label ?? '—'}</Display>
+              </Slab>
+            </View>
           </View>
 
-          <View className="items-center mt-6">
-            <Text className="text-3xl font-bold" style={{ color: '#fff' }}>
-              {selectedMode?.label ?? 'Locked in'}
-            </Text>
-            <Text className="text-sm mt-1" style={{ color: '#888' }}>
-              {selectedMode
-                ? selectedMode.block_type === 'blacklist'
-                  ? `Blocking ${selectedMode.apps.length} apps`
-                  : `${selectedMode.apps.length} apps allowed`
-                : ''}
-            </Text>
-          </View>
+          <View style={{ marginTop: 24 }}>
+            <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ paddingHorizontal: 24, marginBottom: 12 }}>
+              Blocked while locked in · {selectedMode?.apps.length ?? 0}
+            </MonoLabel>
+            <View style={{ gap: 2 }}>
+              {blockedApps.map((appId) => (
+                <View key={appId} style={{ backgroundColor: surface, paddingHorizontal: 24, paddingVertical: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Display size={18} weight="semibold" color={faint} style={{ textDecorationLine: 'line-through' }}>{appId}</Display>
+                  <Ionicons name="lock-closed" size={20} color={accent} />
+                </View>
+              ))}
+            </View>
 
-          <View className="flex-1 items-center justify-center">
-            <Text style={{ color: '#fff', fontSize: 56, lineHeight: 64, fontVariant: ['tabular-nums'], fontWeight: '700', marginBottom: 48 }}>
-              {formatElapsed(elapsed)}
-            </Text>
-
-            <Pressable
-              onPress={() => { if (!armed) setArmed(true); }}
-              disabled={armed}
-              className="w-56 h-56 items-center justify-center"
-            >
-              {armed && (
-                <Animated.View
-                  style={[{
-                    position: 'absolute',
-                    width: 224,
-                    height: 224,
-                    borderRadius: 112,
-                    borderWidth: 2,
-                    borderColor: accent,
-                  }, ringStyle]}
-                />
-              )}
-              <View
-                className="w-32 h-32 rounded-full items-center justify-center"
-                style={{ backgroundColor: armed ? accent + '33' : accent + '1A' }}
+            <View style={{ padding: 20, alignItems: 'center', gap: 8 }}>
+              <Pressable
+                onPress={() => { if (!armed) setArmed(true); }}
+                disabled={armed}
+                style={{ width: '100%', borderWidth: 1.5, borderColor: armed ? accent : border, paddingVertical: 20.5, alignItems: 'center' }}
               >
-                <Ionicons name="hardware-chip-outline" size={64} color={accent} />
-              </View>
-            </Pressable>
-
-            {armed ? (
-              <>
-                <Text className="text-base mt-8 text-center px-6" style={{ color: '#fff' }}>
-                  Hold your tag to the back of your phone…
-                </Text>
-                <Pressable onPress={disarm} hitSlop={12} className="mt-3">
-                  <Text className="text-xs" style={{ color: '#888' }}>Cancel</Text>
+                <Display size={19} weight="extrabold" color={ink} uppercase letterSpacing={19 * 0.06}>
+                  {armed ? 'Hold your tag to the phone…' : 'Tap tag to end session'}
+                </Display>
+              </Pressable>
+              <MonoLabel color={faint} size={12} letterSpacing={12 * 0.1} uppercase={false}>
+                Time is logged when you tap out
+              </MonoLabel>
+              {armed && (
+                <Pressable onPress={disarm} hitSlop={12}>
+                  <MonoLabel color={muted} size={12}>Cancel</MonoLabel>
                 </Pressable>
-              </>
-            ) : (
-              <>
-                <Text className="text-lg font-semibold mt-8 text-center px-6" style={{ color: '#fff' }}>
-                  Tap the ring to scan your tag
-                </Text>
-                <Text className="text-sm mt-2 text-center px-6" style={{ color: '#888' }}>
-                  Then hold your Momentum tag to the back of your phone.
-                </Text>
-              </>
-            )}
-            {scanError && (
-              <Text className="text-sm text-red-400 mt-3 text-center">{scanError}</Text>
-            )}
+              )}
+              {scanError && (
+                <MonoLabel color="#EF4444" size={12} uppercase={false}>{scanError}</MonoLabel>
+              )}
+              <Pressable onPress={handleEmergency} hitSlop={16} style={{ marginTop: 8 }}>
+                <MonoLabel color={faint} size={11}>
+                  Emergency unblock · {Math.max(0, emergencyLimit - emergencyUsed)} left
+                </MonoLabel>
+              </Pressable>
+            </View>
           </View>
-
-          <View className="pb-6 items-center">
-            <Pressable onPress={handleEmergency} hitSlop={20}>
-              <Text className="text-xs" style={{ color: '#666' }}>
-                Emergency unblock — {remainingEmergency} remaining
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // Default state
+  // ------------------ Render: idle ------------------
+
   const hasModes = modes.length > 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
       <StatusBar barStyle={barStyle} />
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 px-6 pt-4">
-          <View className="items-center">
-            <Text variant="muted" className="text-sm">
-              Locked in today — {formatTodayTotal(totalToday)}
-            </Text>
-          </View>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}>
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <MonoLabel color={muted} size={12} letterSpacing={12 * 0.22} style={{ textAlign: 'center' }}>
+            Locked in today · {formatTodayTotal(totalToday)}
+          </MonoLabel>
 
-          <Pressable
-            className="mt-8 self-center flex-row items-center gap-2"
-            onPress={() => hasModes ? setDropdownOpen(true) : navigation.navigate('CreateMode', {})}
-          >
-            <Text variant="heading" className="text-2xl">
-              {selectedMode?.label ?? (hasModes ? 'Select a mode' : 'Create a mode')}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={ink} />
-          </Pressable>
-          <Text variant="muted" className="text-center text-sm mt-2">
-            {selectedMode
-              ? selectedMode.block_type === 'blacklist'
-                ? `Blocking ${selectedMode.apps.length} apps`
-                : `${selectedMode.apps.length} apps allowed`
-              : hasModes
-                ? 'Pick a mode to start'
-                : 'Create a mode to start'}
-          </Text>
-
-          <View className="flex-1 items-center justify-center">
-            <View className="w-56 h-56 rounded-full bg-surface dark:bg-surface-dark items-center justify-center">
-              <Ionicons name="hardware-chip-outline" size={80} color={muted} />
-            </View>
-            <Text variant="muted" className="text-xs mt-6 uppercase tracking-wider">
-              Tap your tag to lock in
-            </Text>
-          </View>
-
-          <View className="pb-2">
-            <Button
-              label="Lock In"
-              fullWidth
-              disabled={!selectedMode}
-              onPress={handleLockIn}
-            />
-          </View>
-        </View>
-      </ScrollView>
-
-      <Modal
-        visible={dropdownOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setDropdownOpen(false)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
-          onPress={() => setDropdownOpen(false)}
-        >
-          <Pressable onPress={() => {}} style={{ marginTop: 'auto' }}>
-            <SafeAreaView
-              edges={['bottom']}
-              style={{ backgroundColor: isDark ? '#1A1A1B' : '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
-            >
-              <View className="px-6 pt-6 pb-4">
-                <Text variant="heading" className="text-xl mb-2">Select a mode</Text>
-              </View>
-              {modes.map((mode) => {
+          {hasModes && (
+            <View style={{ flexDirection: 'row', gap: 2, marginTop: 18 }}>
+              {modes.slice(0, 3).map((mode) => {
                 const active = mode.id === selectedModeId;
                 return (
                   <Pressable
                     key={mode.id}
-                    onPress={() => { selectMode(mode.id); setDropdownOpen(false); }}
-                    onLongPress={() => {
-                      Alert.alert(mode.label, undefined, [
-                        {
-                          text: 'Edit',
-                          onPress: () => {
-                            setDropdownOpen(false);
-                            navigation.navigate('CreateMode', { modeId: mode.id });
-                          },
-                        },
-                        { text: 'Cancel', style: 'cancel' },
-                      ]);
-                    }}
-                    className="px-6 py-4 flex-row items-center justify-between active:opacity-50"
-                    style={{ borderBottomWidth: 1, borderBottomColor: muted + '20' }}
+                    onPress={() => selectMode(mode.id)}
+                    onLongPress={() => navigation.navigate('CreateMode', { modeId: mode.id })}
+                    style={{ flex: 1 }}
                   >
-                    <View>
-                      <Text className="text-base">{mode.label}</Text>
-                      <Text variant="muted" className="text-xs mt-0.5">
-                        {mode.block_type === 'blacklist'
-                          ? `Blocking ${mode.apps.length} apps`
-                          : `${mode.apps.length} apps allowed`}
-                      </Text>
-                    </View>
-                    {active && <Ionicons name="checkmark" size={20} color={accent} />}
+                    <Slab background={active ? accent : surface} style={{ padding: 16 }}>
+                      <MonoLabel color={active ? 'rgba(14,14,15,.6)' : muted} size={10} letterSpacing={10 * 0.14}>Mode</MonoLabel>
+                      <Display size={20} weight="black" color={active ? bg : muted} uppercase style={{ marginTop: 8 }} numberOfLines={1}>
+                        {mode.label}
+                      </Display>
+                    </Slab>
                   </Pressable>
                 );
               })}
-              <Pressable
-                onPress={() => { setDropdownOpen(false); navigation.navigate('CreateMode', {}); }}
-                className="px-6 py-5 flex-row items-center gap-3 active:opacity-50"
-              >
-                <Ionicons name="add-circle-outline" size={22} color={accent} />
-                <Text className="text-base" style={{ color: accent }}>Create new mode</Text>
-              </Pressable>
-            </SafeAreaView>
+            </View>
+          )}
+        </View>
+
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 248, height: 248, borderRadius: 124, borderWidth: 1.5, borderStyle: 'dashed', borderColor: border, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 184, height: 184, borderRadius: 92, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              <Ionicons name="hardware-chip-outline" size={76} color={accent} />
+              <MonoLabel color={muted} size={11} letterSpacing={11 * 0.18}>
+                {selectedMode?.label ?? (hasModes ? 'Select a mode' : 'No modes yet')}
+              </MonoLabel>
+            </View>
+          </View>
+          <Pressable onPress={() => (hasModes ? undefined : navigation.navigate('CreateMode', {}))}>
+            <Display size={26} weight="black" color={ink} uppercase style={{ textAlign: 'center', lineHeight: 30, marginTop: 34 }}>
+              {hasModes ? 'Tap in. The clock\nruns till you tap out.' : 'Create a mode\nto get started.'}
+            </Display>
           </Pressable>
-        </Pressable>
-      </Modal>
+          {hasModes && (
+            <Pressable onPress={() => navigation.navigate('CreateMode', {})} style={{ marginTop: 16 }}>
+              <MonoLabel color={accent} size={12} letterSpacing={12 * 0.1}>+ New mode</MonoLabel>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+          <SlabButton
+            label="Lock in"
+            fullWidth
+            disabled={!selectedMode}
+            onPress={handleLockIn}
+          />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

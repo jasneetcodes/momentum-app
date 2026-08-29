@@ -3,9 +3,10 @@ import { useNavigation } from '@react-navigation/native';
 import React, { useEffect } from 'react';
 import { Alert, Pressable, ScrollView, StatusBar, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { Text } from '../../components/Text';
+import { Display } from '../../components/Display';
+import { MonoLabel } from '../../components/MonoLabel';
+import { Slab } from '../../components/Slab';
+import { SlabButton } from '../../components/SlabButton';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAlarmStore, type Alarm } from '../../stores/alarmStore';
 import type { AlarmsNavProp } from '../../navigation/types';
@@ -13,75 +14,86 @@ import type { AlarmsNavProp } from '../../navigation/types';
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_VALUES = [1, 2, 3, 4, 5, 6, 0];
 
-function formatTimeDisplay(time: string): string {
+function formatTimeDisplay(time: string): { hhmm: string; period: string } {
   const [hh, mm] = time.split(':').map(Number);
   const period = hh >= 12 ? 'PM' : 'AM';
   const displayHours = hh % 12 || 12;
-  return `${displayHours}:${String(mm).padStart(2, '0')} ${period}`;
+  return { hhmm: `${displayHours}:${String(mm).padStart(2, '0')}`, period };
 }
 
-interface AlarmCardProps {
+interface AlarmRowProps {
   alarm: Alarm;
   onToggle: (id: string, value: boolean) => void;
   onPress: () => void;
   onLongPress: () => void;
 }
 
-function AlarmCard({ alarm, onToggle, onPress, onLongPress }: AlarmCardProps) {
-  const { accent, muted } = useThemeColors();
+function AlarmRow({ alarm, onToggle, onPress, onLongPress }: AlarmRowProps) {
+  const { accent, ink, muted, border, bg } = useThemeColors();
+  const { hhmm, period } = formatTimeDisplay(alarm.time);
   const isOneOff = alarm.days_of_week.length === 0;
 
   return (
     <Pressable onLongPress={onLongPress} onPress={onPress}>
-      <Card style={{ opacity: alarm.is_active ? 1 : 0.5 }}>
-        <View className="flex-row items-start justify-between">
-          <View className="flex-1">
-            <Text className="text-4xl font-bold text-ink dark:text-ink-dark">
-              {formatTimeDisplay(alarm.time)}
-            </Text>
-            {alarm.label && (
-              <Text variant="muted" className="text-sm mt-1">{alarm.label}</Text>
-            )}
-            <View className="flex-row gap-1.5 mt-3">
-              {DAY_LABELS.map((day, i) => {
-                const active = alarm.days_of_week.includes(DAY_VALUES[i]);
-                return (
-                  <View
-                    key={i}
-                    className="w-6 h-6 rounded-full items-center justify-center"
-                    style={{
-                      backgroundColor: active ? accent + '1A' : 'transparent',
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{ color: active ? accent : muted }}
-                    >
-                      {day}
-                    </Text>
-                  </View>
-                );
-              })}
+      <Slab
+        borderLeftColor={alarm.is_active ? accent : border}
+        style={{ padding: 22, opacity: alarm.is_active ? 1 : 0.5 }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <View>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Display size={44} weight="black" color={ink} lineHeight={40}>{hhmm}</Display>
+              <Display size={17} weight="extrabold" color={muted} letterSpacing={0} style={{ marginLeft: 4 }}>{period}</Display>
             </View>
-            {isOneOff && (
-              <Text variant="muted" className="text-xs mt-2">One-off</Text>
+            {alarm.label && (
+              <MonoLabel color={accent} size={13} letterSpacing={13 * 0.16} style={{ marginTop: 10 }}>
+                {alarm.label}
+              </MonoLabel>
             )}
           </View>
           <Switch
             value={alarm.is_active}
             onValueChange={(v) => onToggle(alarm.id, v)}
-            trackColor={{ false: muted + '40', true: accent }}
-            thumbColor="#fff"
+            trackColor={{ false: border, true: accent }}
+            thumbColor={bg}
           />
         </View>
-      </Card>
+
+        <View style={{ flexDirection: 'row', gap: 5, marginTop: 16 }}>
+          {DAY_LABELS.map((day, i) => {
+            const active = alarm.days_of_week.includes(DAY_VALUES[i]);
+            return (
+              <View
+                key={i}
+                style={{ flex: 1, paddingVertical: 9, alignItems: 'center', backgroundColor: active ? accent + '24' : 'transparent' }}
+              >
+                <MonoLabel color={active ? accent : muted} size={13}>{day}</MonoLabel>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+          <MonoLabel color={muted} size={12} letterSpacing={12 * 0.08} uppercase={false}>
+            {alarm.apps.length} APPS {alarm.block_type === 'blacklist' ? 'BLOCKED' : 'ALLOWED'}
+          </MonoLabel>
+          <MonoLabel color={border} size={12}>|</MonoLabel>
+          <MonoLabel color={muted} size={12} letterSpacing={12 * 0.08} uppercase={false}>{alarm.block_duration_minutes} MIN LOCK</MonoLabel>
+          {isOneOff && (
+            <>
+              <MonoLabel color={border} size={12}>|</MonoLabel>
+              <MonoLabel color={muted} size={12}>ONE-OFF</MonoLabel>
+            </>
+          )}
+        </View>
+      </Slab>
     </Pressable>
   );
 }
 
 export default function AlarmsScreen() {
   const navigation = useNavigation<AlarmsNavProp>();
-  const { barStyle, ink } = useThemeColors();
+  const { barStyle, bg, ink, muted, border, accent } = useThemeColors();
   const alarms = useAlarmStore((s) => s.alarms);
   const fetchAlarms = useAlarmStore((s) => s.fetchAlarms);
   const toggleAlarm = useAlarmStore((s) => s.toggleAlarm);
@@ -94,58 +106,51 @@ export default function AlarmsScreen() {
   const confirmDelete = (alarm: Alarm) => {
     Alert.alert(
       'Delete alarm?',
-      `"${alarm.label ?? formatTimeDisplay(alarm.time)}" will be removed.`,
+      `"${alarm.label ?? formatTimeDisplay(alarm.time).hhmm}" will be removed.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteAlarm(alarm.id),
-        },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteAlarm(alarm.id) },
       ],
     );
   };
 
   const handleLongPress = (alarm: Alarm) => {
-    Alert.alert(alarm.label ?? formatTimeDisplay(alarm.time), undefined, [
+    Alert.alert(alarm.label ?? formatTimeDisplay(alarm.time).hhmm, undefined, [
       { text: 'Delete', style: 'destructive', onPress: () => confirmDelete(alarm) },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
       <StatusBar barStyle={barStyle} />
-      <View className="flex-row items-center justify-between px-6 pt-4 pb-2">
-        <Text variant="heading" className="text-3xl">Alarms</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 14 }}>
+        <Display size={40} weight="black" color={ink} uppercase letterSpacing={-40 * 0.035}>Alarms</Display>
         <Pressable
           onPress={() => navigation.navigate('AlarmSetup', {})}
           hitSlop={12}
-          className="p-2"
+          style={{ width: 52, height: 52, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name="add" size={28} color={ink} />
+          <Ionicons name="add" size={32} color={bg} />
         </Pressable>
       </View>
 
       {alarms.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text variant="heading" className="text-2xl text-center">No alarms yet</Text>
-          <Text variant="muted" className="text-base text-center mt-3 mb-8">
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <Display size={22} weight="bold" color={ink} style={{ textAlign: 'center' }}>No alarms yet</Display>
+          <MonoLabel color={muted} size={13} letterSpacing={0} uppercase={false} style={{ textAlign: 'center', lineHeight: 20, marginTop: 12, marginBottom: 32 }}>
             Set your first alarm.{'\n'}No snooze. No excuses.
-          </Text>
-          <Button
-            label="Create alarm"
-            onPress={() => navigation.navigate('AlarmSetup', {})}
-          />
+          </MonoLabel>
+          <SlabButton label="Create alarm" onPress={() => navigation.navigate('AlarmSetup', {})} />
         </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 4 }}
         >
-          <View className="gap-3">
+          <View style={{ gap: 2 }}>
             {alarms.map((alarm) => (
-              <AlarmCard
+              <AlarmRow
                 key={alarm.id}
                 alarm={alarm}
                 onToggle={toggleAlarm}
@@ -154,9 +159,9 @@ export default function AlarmsScreen() {
               />
             ))}
           </View>
-          <Text variant="muted" className="text-xs text-center mt-6">
-            Long-press any alarm for options.
-          </Text>
+          <MonoLabel color={muted} size={12} letterSpacing={12 * 0.1} uppercase style={{ textAlign: 'center', marginTop: 20 }}>
+            Long-press to delete
+          </MonoLabel>
         </ScrollView>
       )}
     </SafeAreaView>

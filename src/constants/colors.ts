@@ -5,6 +5,7 @@
  */
 
 export const accent = '#01BAEF';
+export const hazard = '#EF4444'; // blocked-state red — same in both modes
 
 export interface ThemeColors {
   bg: string;
@@ -12,6 +13,11 @@ export interface ThemeColors {
   ink: string;
   muted: string;
   accent: string;
+  /** Slab/row borders and dividers throughout the redesigned system. */
+  border: string;
+  /** Disabled / struck-through text (e.g. a blocked app's name). */
+  faint: string;
+  hazard: string;
 }
 
 export const lightTheme: ThemeColors = {
@@ -20,6 +26,9 @@ export const lightTheme: ThemeColors = {
   ink: '#1A1A1A',
   muted: '#717171',
   accent,
+  border: '#E2DFDA',
+  faint: '#9A9A96',
+  hazard,
 };
 
 export const darkTheme: ThemeColors = {
@@ -28,6 +37,9 @@ export const darkTheme: ThemeColors = {
   ink: '#FFFFFF',
   muted: '#888888',
   accent,
+  border: '#2A2A2C',
+  faint: '#5A5A5C',
+  hazard,
 };
 
 
