@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
+import { Alert, Platform, Pressable, StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppPicker } from '../../components/AppPicker';
 import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
 import { Text } from '../../components/Text';
 import { DEFAULT_BLOCKED_APPS, SOCIAL_MEDIA_APPS } from '../../constants/apps';
@@ -38,11 +38,11 @@ export default function CreateModeScreen() {
   );
 
   const platformDefaults = useMemo(() => platformBundleIds(), []);
-  const platformAppList = useMemo(
+  const defaultApps = useMemo(
     () =>
       SOCIAL_MEDIA_APPS.map((a) => ({
+        id: Platform.OS === 'ios' ? a.ios : a.android,
         name: a.name,
-        bundleId: Platform.OS === 'ios' ? a.ios : a.android,
       })),
     [],
   );
@@ -124,92 +124,58 @@ export default function CreateModeScreen() {
         </Text>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
-      >
-        <Text variant="label" className="mt-2 mb-3">Name</Text>
-        <Input
-          placeholder="e.g. Studying"
-          value={label}
-          onChangeText={setLabel}
-          autoCapitalize="sentences"
-        />
+      <AppPicker
+        defaultApps={defaultApps}
+        selected={selectedApps}
+        onToggle={toggleApp}
+        lockedNote="Social apps always blocked"
+        header={
+          <>
+            <Text variant="label" className="mt-2 mb-3">Name</Text>
+            <Input
+              placeholder="e.g. Studying"
+              value={label}
+              onChangeText={setLabel}
+              autoCapitalize="sentences"
+            />
 
-        <Text variant="label" className="mt-8 mb-3">Block type</Text>
-        <View className="flex-row gap-2">
-          {(['blacklist', 'whitelist'] as const).map((type) => {
-            const active = blockType === type;
-            return (
-              <Pressable
-                key={type}
-                onPress={() => handleBlockTypeChange(type)}
-                className="flex-1 py-3 rounded-xl items-center"
-                style={{
-                  backgroundColor: active ? accent : 'transparent',
-                  borderWidth: 1,
-                  borderColor: active ? accent : muted + '40',
-                }}
-              >
-                <Text
-                  className="text-sm font-semibold capitalize"
-                  style={{ color: active ? '#fff' : ink }}
-                >
-                  {type === 'blacklist' ? 'Block these' : 'Allow only these'}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View className="flex-row items-center justify-between mt-8 mb-3">
-          <Text variant="label">Apps</Text>
-          <Text variant="muted" className="text-xs">Social apps always blocked</Text>
-        </View>
-        <Card className="p-0">
-          {platformAppList.map((app, i) => {
-            const isLocked = platformDefaults.has(app.bundleId);
-            const isSelected = selectedApps.has(app.bundleId);
-            return (
-              <Pressable
-                key={app.bundleId}
-                onPress={() => toggleApp(app.bundleId)}
-                className="flex-row items-center justify-between px-5 py-4 active:opacity-60"
-                style={{
-                  borderBottomWidth: i < platformAppList.length - 1 ? 1 : 0,
-                  borderBottomColor: muted + '20',
-                }}
-              >
-                <View className="flex-1">
-                  <Text className="text-base">{app.name}</Text>
-                  {isLocked && (
-                    <Text variant="muted" className="text-xs mt-0.5">Default — Always blocked</Text>
-                  )}
-                </View>
-                <View
-                  className="w-6 h-6 rounded-md items-center justify-center"
-                  style={{
-                    backgroundColor: isSelected ? accent : 'transparent',
-                    borderWidth: 1.5,
-                    borderColor: isSelected ? accent : muted,
-                    opacity: isLocked ? 0.4 : 1,
-                  }}
-                >
-                  {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
-                </View>
-              </Pressable>
-            );
-          })}
-        </Card>
-
-        <Button
-          label={editing ? 'Save changes' : 'Create mode'}
-          fullWidth
-          loading={saving}
-          onPress={handleSave}
-          className="mt-10"
-        />
-      </ScrollView>
+            <Text variant="label" className="mt-8 mb-3">Block type</Text>
+            <View className="flex-row gap-2">
+              {(['blacklist', 'whitelist'] as const).map((type) => {
+                const active = blockType === type;
+                return (
+                  <Pressable
+                    key={type}
+                    onPress={() => handleBlockTypeChange(type)}
+                    className="flex-1 py-3 rounded-xl items-center"
+                    style={{
+                      backgroundColor: active ? accent : 'transparent',
+                      borderWidth: 1,
+                      borderColor: active ? accent : muted + '40',
+                    }}
+                  >
+                    <Text
+                      className="text-sm font-semibold capitalize"
+                      style={{ color: active ? '#fff' : ink }}
+                    >
+                      {type === 'blacklist' ? 'Block these' : 'Allow only these'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        }
+        footer={
+          <Button
+            label={editing ? 'Save changes' : 'Create mode'}
+            fullWidth
+            loading={saving}
+            onPress={handleSave}
+            className="mt-10"
+          />
+        }
+      />
     </SafeAreaView>
   );
 }

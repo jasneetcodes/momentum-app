@@ -27,9 +27,10 @@ class AppBlockingService : AccessibilityService() {
 
     // Never block ourselves or critical system surfaces — the user must
     // always be able to reach Accessibility settings, the launcher, the
-    // dialer, and the system Settings app.
-    if (WHITELIST.contains(pkg)) return
-    if (pkg == packageName) return
+    // dialer, and the system Settings app. Shared with InstalledAppsModule
+    // so the app picker can never offer something this check would then
+    // silently let through anyway.
+    if (EssentialApps.resolveEssentialPackages(this).contains(pkg)) return
 
     val shouldBlock = when (state.blockType) {
       "blacklist" -> state.packages.contains(pkg)
@@ -49,23 +50,4 @@ class AppBlockingService : AccessibilityService() {
   }
 
   override fun onInterrupt() { /* no-op */ }
-
-  companion object {
-    private val WHITELIST: Set<String> = setOf(
-      // System launchers (Pixel + common AOSP launcher packages)
-      "com.google.android.apps.nexuslauncher",
-      "com.android.launcher",
-      "com.android.launcher3",
-      // System settings & permissions — must reach Accessibility settings
-      "com.android.settings",
-      "com.android.permissioncontroller",
-      "com.google.android.permissioncontroller",
-      // Dialer (emergency)
-      "com.android.dialer",
-      "com.google.android.dialer",
-      // System UI
-      "com.android.systemui",
-      "android",
-    )
-  }
 }
