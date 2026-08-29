@@ -19,11 +19,25 @@ interface AuthState {
   profile: Profile | null;
   loading: boolean;
   initialized: boolean;
+  /**
+   * True while a password-recovery session (from a "forgot password" email
+   * link) is active. Not persisted — a fresh launch with no pending deep
+   * link should never start in recovery mode. Set directly from parsing
+   * the recovery URL, not from onAuthStateChange: the implicit-flow tokens
+   * this app's Supabase client uses arrive via a plain setSession() call,
+   * which emits a generic SIGNED_IN event — Supabase only emits a real
+   * PASSWORD_RECOVERY event from verifyOtp()/PKCE, neither of which this
+   * flow uses.
+   */
+  recoveryMode: boolean;
+  setRecoveryMode: (v: boolean) => void;
   login: (email: string, password: string) => Promise<string | null>;
   signup: (email: string, password: string, name: string) => Promise<string | null>;
   logout: () => Promise<void>;
   initialize: () => () => void;
   fetchProfile: (userId: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<string | null>;
+  updateUserPassword: (newPassword: string) => Promise<string | null>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -32,6 +46,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   profile: null,
   loading: false,
   initialized: false,
+  recoveryMode: false,
+
+  setRecoveryMode: (v) => set({ recoveryMode: v }),
 
   fetchProfile: async (userId: string) => {
     const { data } = await supabase
@@ -74,10 +91,22 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await supabase.auth.signOut();
-    set({ user: null, session: null, profile: null });
+    set({ user: null, session: null, profile: null, recoveryMode: false });
     useNfcStore.getState().reset();
     useAlarmStore.getState().reset();
     useAlarmLogStore.getState().clear();
+  },
+
+  requestPasswordReset: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'momentum://reset-password',
+    });
+    return error ? error.message : null;
+  },
+
+  updateUserPassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return error ? error.message : null;
   },
 
   initialize: () => {

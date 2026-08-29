@@ -79,6 +79,10 @@ export default function LoginScreen() {
               />
             </View>
 
+            <Pressable onPress={() => navigation.navigate('ForgotPassword')} className="mt-3 self-end">
+              <Text className="text-sm font-semibold text-accent">Forgot password?</Text>
+            </Pressable>
+
             {error ? (
               <Text className="text-red-500 text-sm mt-4">{error}</Text>
             ) : null}
